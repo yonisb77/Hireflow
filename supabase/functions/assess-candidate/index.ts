@@ -1,13 +1,20 @@
 // Enkel AI-bedömning av kandidat: poängsätter en kandidats profil (namn,
-// anteckningar, LinkedIn) mot jobbet de sökt, med hjälp av Claude.
+// anteckningar, LinkedIn, CV-textinnehåll) mot jobbet de sökt, med hjälp av Claude.
+//
+// CV-filen (PDF/DOCX) hämtas från Storage och textextraheras innan den skickas
+// till Claude. Äldre .doc-format (binärt) och skannade bild-PDF:er stöds inte
+// för textextraktion — bedömningen faller då tillbaka på profilinformationen.
 //
 // Deploy: supabase functions deploy assess-candidate
 // Kräver secreten: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
 //
 // Körs med anroparens egen JWT (inte service role) så Postgres RLS
-// säkerställer att en kund bara kan bedöma sina egna kandidater.
+// säkerställer att en kund bara kan bedöma sina egna kandidater (gäller även
+// nedladdning av CV-filen, som skyddas av samma RLS-policy i Storage).
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1'
+import mammoth from 'npm:mammoth@1.12.2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -23,6 +30,40 @@ interface Assessment {
   summary: string
   strengths: string[]
   weaknesses: string[]
+}
+
+const MAX_RESUME_CHARS = 8000
+
+// Laddar ner CV-filen (skyddad av samma RLS som anroparens övriga läsningar)
+// och textextraherar den. Returnerar null om filen saknas, formatet inte
+// stöds (t.ex. gammalt .doc) eller extraktionen misslyckas (t.ex. skannad
+// bild-PDF utan textlager) — bedömningen faller då tillbaka på profildata.
+async function extractResumeText(
+  supabase: ReturnType<typeof createClient>,
+  resumePath: string,
+): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('resumes').download(resumePath)
+  if (error || !data) return null
+
+  const ext = resumePath.split('.').pop()?.toLowerCase()
+  const buffer = await data.arrayBuffer()
+
+  try {
+    if (ext === 'pdf') {
+      const pdf = await getDocumentProxy(new Uint8Array(buffer))
+      const { text } = await extractText(pdf, { mergePages: true })
+      const trimmed = text.trim()
+      return trimmed ? trimmed.slice(0, MAX_RESUME_CHARS) : null
+    }
+    if (ext === 'docx') {
+      const result = await mammoth.extractRawText({ arrayBuffer: buffer })
+      const trimmed = result.value.trim()
+      return trimmed ? trimmed.slice(0, MAX_RESUME_CHARS) : null
+    }
+  } catch {
+    return null
+  }
+  return null
 }
 
 Deno.serve(async (req) => {
@@ -53,8 +94,15 @@ Deno.serve(async (req) => {
       .eq('id', candidate.job_id)
       .single()
 
-    const prompt = `Du bedömer hur väl en jobbkandidat matchar en tjänst, baserat på begränsad profilinformation.
-Notera: detta är en enkel/avskalad bedömning — en eventuell uppladdad CV-fil analyseras inte i sitt innehåll, bara om den finns.
+    const resumeText = candidate.resume_path ? await extractResumeText(supabase, candidate.resume_path) : null
+    const resumeStatus = !candidate.resume_path
+      ? 'nej'
+      : resumeText
+        ? 'ja (text extraherad, se nedan)'
+        : 'ja, men texten kunde inte extraheras (t.ex. äldre .doc-format eller skannad bild-PDF utan textlager)'
+
+    const prompt = `Du bedömer hur väl en jobbkandidat matchar en tjänst, baserat på profilinformation och (om tillgängligt) CV-innehåll.
+Notera: detta är en enkel/avskalad bedömning, inte en fullständig CV-parser.
 
 Tjänst: ${job?.title ?? 'Okänd tjänst'}${job?.department ? ` (${job.department})` : ''}
 ${job?.description ? `Kravprofil/beskrivning: ${job.description}` : 'Ingen kravprofil angiven för tjänsten.'}
@@ -63,9 +111,10 @@ Kandidat:
 Namn: ${candidate.full_name}
 LinkedIn: ${candidate.linkedin_url || 'saknas'}
 Anteckningar från rekryterare: ${candidate.notes || 'inga anteckningar'}
-CV bifogat: ${candidate.resume_path ? 'ja (ej textanalyserat i denna version)' : 'nej'}
+CV bifogat: ${resumeStatus}
+${resumeText ? `\nCV-innehåll (utdrag, max ${MAX_RESUME_CHARS} tecken):\n${resumeText}` : ''}
 
-Ge en kort, ärlig bedömning. Svara ENDAST med giltig JSON, inget annat, i exakt detta format:
+Ge en kort, ärlig bedömning. Om CV-innehåll finns ovan, väg in det tyngre än de korta anteckningarna. Svara ENDAST med giltig JSON, inget annat, i exakt detta format:
 {"score": <heltal 1-10>, "summary": "<en mening>", "strengths": ["<kort punkt>", ...], "weaknesses": ["<kort punkt>", ...]}
 
 Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt score till 5 och säg det i summary.`
