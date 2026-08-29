@@ -20,7 +20,7 @@ Ett rekryteringssystem (ATS). React + Vite + Tailwind i frontend, Supabase (Post
 - Anteckningstidslinje per kandidat — flera personer kan lägga till tidsstämplade kommentarer utan att skriva över varandra
 - Anledning till avslag kan anges när en kandidat markeras "Avvisad"
 - Användarmeny (klick på namnet i headern) med byt lösenord, admin-åtgärder och utloggning samlat på ett ställe
-- Statistik: framgångsgrad, snitt-tid till anställning, kandidater per steg/jobb, antal fastnade kandidater — speglar aktiva filter
+- Statistik: andel anställda av avgjorda, snittid till anställning, kandidater per steg/jobb, antal inaktiva (≥14 dagar utan förändring) — speglar aktiva filter
 - GDPR: CV-filen raderas automatiskt när en kandidat tas bort; en admin/kund kan exportera all lagrad data om en kandidat som JSON
 - Riktig ångra-funktion vid borttagning av kandidat (toast med "Ångra" i 6 sek, inte bara en bekräftelse-dialog)
 
@@ -38,12 +38,13 @@ RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (k
 2. **Kör migrationerna** i ordning i SQL Editor i Supabase-dashboarden:
    - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — schema, RLS, triggers
    - [`supabase/migrations/0002_ai_assessment.sql`](supabase/migrations/0002_ai_assessment.sql) — kolumner för AI-bedömning
-   - [`supabase/migrations/0003_realtime.sql`](supabase/migrations/0003_realtime.sql) — aktiverar realtidssynk
+   - [`supabase/migrations/0003_realtime.sql`](supabase/migrations/0003_realtime.sql) — aktiverar realtidspublicering i databasen (Postgres, förberedande — används inte av frontend i nuläget)
    - [`supabase/migrations/0004_job_status_and_stage_time.sql`](supabase/migrations/0004_job_status_and_stage_time.sql) — jobbstatus + tidsspårning per steg
    - [`supabase/migrations/0005_prevent_role_escalation.sql`](supabase/migrations/0005_prevent_role_escalation.sql) — täpper till en privilege-escalation-lucka i `profiles`-policyn (se kommentar i filen)
    - [`supabase/migrations/0006_enforce_job_status_on_insert.sql`](supabase/migrations/0006_enforce_job_status_on_insert.sql) — flyttar "stängt jobb"-kontrollen från UI till RLS
    - [`supabase/migrations/0007_lock_stage_changed_at.sql`](supabase/migrations/0007_lock_stage_changed_at.sql) — låser `stage_changed_at` mot att klienten skickar egna värden
    - [`supabase/migrations/0008_job_description_resume_notes_rejection.sql`](supabase/migrations/0008_job_description_resume_notes_rejection.sql) — jobbeskrivning, CV-lagring (Storage-bucket + RLS), anteckningstidslinje, avslagsanledning
+   - [`supabase/migrations/0009_rename_admin_display.sql`](supabase/migrations/0009_rename_admin_display.sql) — engångsfix: sätter visningsnamnet för det första admin-kontot till "Admin" (byt ut e-postadressen i filen mot din egen innan den körs)
 3. **Deploya edge-funktionerna** (kräver [Supabase CLI](https://supabase.com/docs/guides/cli)):
    ```bash
    npx supabase login
@@ -57,6 +58,7 @@ RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (k
 4. **Skapa första admin-kontot**: eftersom bara admins kan skapa konton måste första användaren skapas för hand:
    - Supabase Dashboard → Authentication → Users → Add user (sätt lösenord, eller använd "invite").
    - Kör sedan i SQL Editor: `update public.profiles set role = 'admin' where email = 'din@epost.se';`
+   - Om "Admin"-genvägen vid inloggning ska funka (se "Hur inloggning fungerar" nedan) måste `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx` ändras till samma e-postadress.
 5. **Sätt miljövariabler**: kopiera `.env.example` till `.env` och fyll i projektets URL och anon-nyckel (Dashboard → Settings → API).
 6. **Installera & kör**:
    ```bash
@@ -69,6 +71,10 @@ RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (k
 Vilken statisk host som helst funkar (Vercel, Netlify, Cloudflare Pages). Sätt `VITE_SUPABASE_URL` och `VITE_SUPABASE_ANON_KEY` som miljövariabler vid bygget. `npm run build` bygger till `dist/`.
 
 Kom ihåg att uppdatera **Site URL** och **Redirect URLs** i Supabase (Authentication → URL Configuration) till den riktiga driftsatta URL:en, annars pekar inbjudningsmail fel.
+
+## Hur inloggning fungerar
+
+Inloggningsfältet heter "Användarnamn" och tar emot en e-postadress för kunder. Admin-kontot har en hårdkodad genväg: att skriva "Admin" i fältet slår upp den riktiga e-postadressen (satt i `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx`) innan inloggningen skickas till Supabase Auth — det är ingen egen användarnamnsinloggning, bara en förkortning för det enda admin-kontot. Att skriva admin-kontots riktiga e-postadress direkt blockeras i gränssnittet.
 
 ## Hur kontoskapande fungerar
 

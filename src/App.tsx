@@ -246,12 +246,34 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedCandidate, editingJob, showJobModal, showCandidateModal, showAccountModal, showPasswordModal, showManageJobsModal, showManageCompaniesModal, showStatsModal, showUserMenu, showMoreMenu, session])
 
+  // Admin loggar in med "Admin" istället för e-post — Supabase Auth kräver
+  // ändå en riktig e-post server-side, så det här slår bara upp den bakom kulisserna.
+  const ADMIN_SHORTCUT_EMAIL = 'yonis_77@hotmail.com'
+
+  // Supabase Auth returnerar felmeddelanden på engelska — översätter de vanligaste
+  // så gränssnittet är konsekvent svenskt, med originaltexten som reservfallback.
+  const translateAuthError = (message: string): string => {
+    if (/invalid login credentials/i.test(message)) return 'Fel användarnamn eller lösenord.'
+    if (/email not confirmed/i.test(message)) return 'Kontot är inte bekräftat än.'
+    if (/user already registered/i.test(message)) return 'Kontot finns redan.'
+    if (/password should be at least/i.test(message)) return 'Lösenordet måste vara minst 6 tecken.'
+    if (/new password should be different/i.test(message)) return 'Det nya lösenordet måste skilja sig från det gamla.'
+    if (/rate limit/i.test(message)) return 'För många försök. Vänta en stund och försök igen.'
+    return message
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
     setAuthError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setAuthError(error.message)
+    const typed = email.trim().toLowerCase()
+    if (typed === ADMIN_SHORTCUT_EMAIL.toLowerCase()) {
+      setAuthError('Ogiltigt användarnamn.')
+      return
+    }
+    setLoading(true)
+    const resolvedEmail = typed === 'admin' ? ADMIN_SHORTCUT_EMAIL : email
+    const { error } = await supabase.auth.signInWithPassword({ email: resolvedEmail, password })
+    if (error) setAuthError(translateAuthError(error.message))
     setLoading(false)
   }
 
@@ -261,18 +283,18 @@ export default function App() {
     e.preventDefault()
     setPasswordError(null)
     if (newPassword.length < 6) {
-      setPasswordError('Lösenordet måste vara minst 6 tecken')
+      setPasswordError('Lösenordet måste vara minst 6 tecken.')
       return
     }
     if (newPassword !== newPasswordConfirm) {
-      setPasswordError('Lösenorden matchar inte')
+      setPasswordError('Lösenorden matchar inte.')
       return
     }
     setPasswordBusy(true)
     const { error } = await supabase.auth.updateUser({ password: newPassword })
     setPasswordBusy(false)
     if (error) {
-      setPasswordError(error.message)
+      setPasswordError(translateAuthError(error.message))
       return
     }
     setShowPasswordModal(false)
@@ -853,7 +875,13 @@ export default function App() {
   }
 
   if (session && !profile) {
-    return <div className="min-h-screen bg-slate-50 flex items-center justify-center text-sm text-slate-500">Laddar...</div>
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-900 flex items-center justify-center">
+        <span className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-xl p-3 shadow-md shadow-blue-600/30 animate-float">
+          <HireflowMark className="w-6 h-6" />
+        </span>
+      </div>
+    )
   }
 
   return (
@@ -1120,7 +1148,7 @@ export default function App() {
               <FilterX className="w-6 h-6 text-slate-400" />
             </span>
             <p className="text-sm font-semibold text-white">Inga kandidater matchar filtret</p>
-            <p className="text-xs text-slate-300 mt-1 mb-4">Prova ett annat jobb, företag eller sökord.</p>
+            <p className="text-xs text-slate-300 mt-1 mb-4">Försök med ett annat jobb, företag eller sökord.</p>
             <button
               onClick={clearFilters}
               className="bg-blue-100 border border-blue-300 hover:bg-blue-200 text-blue-800 text-xs font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-1.5 transition"
@@ -1253,7 +1281,7 @@ export default function App() {
           <div className="bg-gradient-to-br from-blue-100 to-indigo-200/80 rounded-xl p-5 max-w-sm w-full animate-fade-in-up border border-blue-100/50">
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="bg-gradient-to-br from-blue-600 to-indigo-600 text-white rounded-lg p-1.5"><Briefcase className="w-4 h-4" /></span>
-              Skapa nytt jobb
+              Skapa jobb
             </h2>
             <form onSubmit={createJob} className="space-y-3">
               {isAdmin && (
@@ -1336,7 +1364,7 @@ export default function App() {
             </h2>
             <form onSubmit={createCandidate} className="space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Söker jobb</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">Jobb</label>
                 <select autoFocus required value={newCandJobId} onChange={e => setNewCandJobId(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white">
                   <option value="">Välj jobb...</option>
                   {openJobs.map(j => (
@@ -1359,7 +1387,7 @@ export default function App() {
                 )}
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">LinkedIn URL</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">LinkedIn-profil</label>
                 <input value={newCandLinkedin} onChange={e => setNewCandLinkedin(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white text-slate-800 placeholder:text-slate-400" placeholder="linkedin.com/in/..." />
               </div>
               <div>
@@ -1499,7 +1527,7 @@ export default function App() {
                 </div>
               </div>
               <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">LinkedIn URL</label>
+                <label className="block text-xs font-semibold text-slate-600 mb-1">LinkedIn-profil</label>
                 <input value={editDraft.linkedin_url} onChange={e => setEditDraft({ ...editDraft, linkedin_url: e.target.value })} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white text-slate-800 placeholder:text-slate-400" />
               </div>
               <div>
@@ -1585,7 +1613,7 @@ export default function App() {
                 {notesLoading ? (
                   <p className="text-xs text-slate-400">Laddar...</p>
                 ) : candidateNotes.length === 0 ? (
-                  <p className="text-xs text-slate-400 mb-2">Inga anteckningar tillagda.</p>
+                  <p className="text-xs text-slate-400 mb-2">Inga anteckningar tillagda</p>
                 ) : (
                   <div className="space-y-2 mb-2 max-h-40 overflow-y-auto slim-scroll pr-1">
                     {candidateNotes.map(note => (
@@ -1722,7 +1750,7 @@ export default function App() {
                 )
               })}
               {manageableJobs.length === 0 && (
-                <p className="text-xs text-slate-400 text-center py-4">Inga jobb registrerade.</p>
+                <p className="text-xs text-slate-400 text-center py-4">Inga jobb registrerade</p>
               )}
               {manageableJobs.length > 0 && filteredManageJobs.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-4">Inga jobb matchar "{manageJobFilter}".</p>
@@ -1778,7 +1806,7 @@ export default function App() {
                 )
               })}
               {customers.length === 0 && (
-                <p className="text-sm text-slate-500 text-center py-4">Inga kundkonton registrerade.</p>
+                <p className="text-sm text-slate-500 text-center py-4">Inga kundkonton registrerade</p>
               )}
               {customers.length > 0 && filteredManageCompanies.length === 0 && (
                 <p className="text-xs text-slate-400 text-center py-4">Inga företag matchar "{manageCompanyFilter}".</p>
@@ -1808,11 +1836,11 @@ export default function App() {
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
                 <div className="text-2xl font-bold text-slate-800">{stats.successRate !== null ? `${stats.successRate}%` : '—'}</div>
-                <div className="text-[11px] text-slate-500">Framgångsgrad (anställd av avgjorda)</div>
+                <div className="text-[11px] text-slate-500">Framgångsgrad (andel anställda av avgjorda)</div>
               </div>
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
                 <div className="text-2xl font-bold text-slate-800">{stats.avgTimeToHireDays !== null ? `${stats.avgTimeToHireDays}d` : '—'}</div>
-                <div className="text-[11px] text-slate-500">Snitt-tid till anställning</div>
+                <div className="text-[11px] text-slate-500">Snittid till anställning</div>
               </div>
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3">
                 <div className="text-2xl font-bold text-slate-800">{stats.hiredCount}</div>
@@ -1820,7 +1848,7 @@ export default function App() {
               </div>
               <div className={`border rounded-lg p-3 ${stats.staleCount > 0 ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
                 <div className={`text-2xl font-bold ${stats.staleCount > 0 ? 'text-amber-700' : 'text-slate-800'}`}>{stats.staleCount}</div>
-                <div className="text-[11px] text-slate-500">Fastnat ≥14 dagar utan förändring</div>
+                <div className="text-[11px] text-slate-500">Inaktiva ≥14 dagar</div>
               </div>
             </div>
 
