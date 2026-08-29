@@ -51,7 +51,7 @@ export default function ManageCompaniesModal({ ats }: { ats: AtsData }) {
                     {company.company_name}
                   </button>
                   <div className="flex items-center gap-1.5 text-xs text-slate-400 truncate">
-                    <span className="truncate">{company.email} · {jobCount} {jobCount === 1 ? 'jobb' : 'jobb'}</span>
+                    <span className="truncate">{company.email} · {jobCount} jobb</span>
                     {ats.accountStatus[company.id] === false && (
                       <span className="shrink-0 inline-flex items-center text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full">Väntar på inbjudan</span>
                     )}

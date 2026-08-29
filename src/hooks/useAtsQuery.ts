@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { invokeEdgeFunction } from '../edgeFunctions'
 import type { Job, Candidate, Profile } from '../types'
 
 // Datahämtningslagret: äger de råa listorna (jobb, kandidater, kunder,
@@ -28,12 +29,8 @@ export function useAtsQuery(profile: Profile | null) {
       const { data: customersData } = await supabase.from('profiles').select('*').eq('role', 'customer').order('company_name').returns<Profile[]>()
       if (customersData) setCustomers(customersData)
 
-      const { data: sessionData } = await supabase.auth.getSession()
-      const token = sessionData.session?.access_token
-      const { data: statusData } = await supabase.functions.invoke('list-account-status', {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-      const status = (statusData as { status?: Record<string, boolean> } | null)?.status
+      const { data: statusData } = await invokeEdgeFunction<{ status?: Record<string, boolean> }>('list-account-status')
+      const status = statusData?.status
       if (status) setAccountStatus(status)
     }
     setLoadingData(false)

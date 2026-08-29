@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { supabase } from '../supabaseClient'
+import { invokeEdgeFunction } from '../edgeFunctions'
 import type { Job, Candidate, Profile } from '../types'
 
 interface Params {
@@ -36,12 +36,7 @@ export function useCompanies({
     e.preventDefault()
     setAccountBusy(true)
     setAccountMessage(null)
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-    const { data, error } = await supabase.functions.invoke('create-user', {
-      body: { email: newAccEmail, role: newAccRole, company_name: newAccCompany },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+    const { data, error } = await invokeEdgeFunction('create-user', { email: newAccEmail, role: newAccRole, company_name: newAccCompany })
     setAccountBusy(false)
     const responseError = (data as { error?: string } | null)?.error
     if (error || responseError) {
@@ -63,12 +58,7 @@ export function useCompanies({
     }
     setManageBusyId(company.id)
     setManageError(null)
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-    const { data, error } = await supabase.functions.invoke('delete-user', {
-      body: { user_id: company.id },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+    const { data, error } = await invokeEdgeFunction('delete-user', { user_id: company.id })
     setManageBusyId(null)
     const responseError = (data as { error?: string } | null)?.error
     if (error || responseError) {
@@ -88,12 +78,7 @@ export function useCompanies({
   const resendInvite = async (company: Profile) => {
     setManageBusyId(company.id)
     setManageError(null)
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-    const { data, error } = await supabase.functions.invoke('create-user', {
-      body: { email: company.email, role: 'customer', company_name: company.company_name },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+    const { data, error } = await invokeEdgeFunction('create-user', { email: company.email, role: 'customer', company_name: company.company_name })
     setManageBusyId(null)
     const responseError = (data as { error?: string } | null)?.error
     if (error || responseError) {

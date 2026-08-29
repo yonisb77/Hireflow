@@ -36,6 +36,13 @@ export const ADMIN_SHORTCUT_EMAIL = 'yonis_77@hotmail.com'
 export const STALE_DAYS = 14
 export const WIP_LIMIT = 8
 
+export const MS_PER_DAY = 24 * 60 * 60 * 1000
+
+// Hur länge "Ångra"-knappen lever i borttagnings-toasten. CV-filen städas bort
+// efter samma fördröjning, så en återställd kandidat hinner peka på filen
+// innan den faktiskt raderas — måste hållas i synk med den fördröjningen.
+export const UNDO_WINDOW_MS = 6000
+
 // Prickkonstellation som återanvänds i bakgrunden både före och efter inloggning — samma nätverksmotiv som HireflowMark.
 export const BACKGROUND_CONSTELLATION = [
   { top: '15%', left: '8%', size: 'w-1.5 h-1.5', color: 'bg-blue-300/50', delay: '0s', glow: false },

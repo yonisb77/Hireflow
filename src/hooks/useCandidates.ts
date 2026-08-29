@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../supabaseClient'
+import { invokeEdgeFunction } from '../edgeFunctions'
 import type { Job, Candidate, Stage, CandidateNote } from '../types'
 import type { Json } from '../database.types'
 import type { Session } from '@supabase/supabase-js'
 import type { DropResult } from '@hello-pangea/dnd'
-import { STAGES, STAGE_ORDER, STALE_DAYS } from '../constants'
+import { STAGES, STAGE_ORDER, STALE_DAYS, MS_PER_DAY, UNDO_WINDOW_MS } from '../constants'
 import { sanitizeFilename, timeAgo as timeAgoUtil } from '../utils'
 
 interface Params {
@@ -237,10 +238,10 @@ export function useCandidates({
       setTimeout(async () => {
         const { data: stillReferenced } = await supabase.from('candidates').select('id').eq('resume_path', path).maybeSingle()
         if (!stillReferenced) await supabase.storage.from('resumes').remove([path])
-      }, 6000)
+      }, UNDO_WINDOW_MS)
     }
 
-    showToast(`${candidate.full_name} borttagen`, 'success', { label: 'Ångra', onClick: () => restoreCandidate(candidate) }, 6000)
+    showToast(`${candidate.full_name} borttagen`, 'success', { label: 'Ångra', onClick: () => restoreCandidate(candidate) }, UNDO_WINDOW_MS)
   }
 
   const restoreCandidate = async (candidate: Candidate) => {
@@ -284,12 +285,7 @@ export function useCandidates({
     if (!selectedCandidate) return
     setAiBusy(true)
     setAiError(null)
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
-    const { data, error } = await supabase.functions.invoke('assess-candidate', {
-      body: { candidate_id: selectedCandidate.id },
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    })
+    const { data, error } = await invokeEdgeFunction('assess-candidate', { candidate_id: selectedCandidate.id })
     setAiBusy(false)
     const responseError = (data as { error?: string } | null)?.error
     if (error || responseError || !(data as { candidate?: Candidate })?.candidate) {
@@ -310,15 +306,10 @@ export function useCandidates({
     if (targets.length === 0) return
     setRankingBusy(true)
     setRankingProgress({ done: 0, total: targets.length })
-    const { data: sessionData } = await supabase.auth.getSession()
-    const token = sessionData.session?.access_token
     let succeeded = 0
     for (const candidate of targets) {
-      const { data, error } = await supabase.functions.invoke('assess-candidate', {
-        body: { candidate_id: candidate.id },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      })
-      const updated = (data as { candidate?: Candidate } | null)?.candidate
+      const { data, error } = await invokeEdgeFunction<{ candidate?: Candidate }>('assess-candidate', { candidate_id: candidate.id })
+      const updated = data?.candidate
       if (!error && updated) {
         succeeded++
         setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c))
@@ -330,20 +321,27 @@ export function useCandidates({
     showToast(`${succeeded} av ${targets.length} kandidater rankade`)
   }
 
+  // Sätter angivna kandidater till ett nytt steg optimistiskt i UI:t och
+  // återställer local state om databasuppdateringen misslyckas. Delad av
+  // drag-and-drop, framåtpilen på kortet och massflytt.
+  const persistStageChange = async (ids: string[], newStage: Stage): Promise<boolean> => {
+    const previousStages = new Map(candidates.filter(c => ids.includes(c.id)).map(c => [c.id, c.stage]))
+    setCandidates(prev => prev.map(c => ids.includes(c.id) ? { ...c, stage: newStage } : c))
+    const { error } = await supabase.from('candidates').update({ stage: newStage }).in('id', ids)
+    if (error) {
+      setCandidates(prev => prev.map(c => previousStages.has(c.id) ? { ...c, stage: previousStages.get(c.id)! } : c))
+    }
+    return !error
+  }
+
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result
     if (!destination) return
     if (destination.droppableId === source.droppableId) return
 
-    const previousStage = source.droppableId as Stage
     const newStage = destination.droppableId as Stage
-    setCandidates(prev => prev.map(c => c.id === draggableId ? { ...c, stage: newStage } : c))
-
-    const { error } = await supabase.from('candidates').update({ stage: newStage }).eq('id', draggableId)
-    if (error) {
-      setCandidates(prev => prev.map(c => c.id === draggableId ? { ...c, stage: previousStage } : c))
-      showToast('Kunde inte flytta kandidaten, försök igen', 'error')
-    }
+    const ok = await persistStageChange([draggableId], newStage)
+    if (!ok) showToast('Kunde inte flytta kandidaten, försök igen', 'error')
   }
 
   const nextStage = (stage: Stage): Stage | null => {
@@ -354,13 +352,8 @@ export function useCandidates({
   const advanceStage = async (candidate: Candidate) => {
     const newStage = nextStage(candidate.stage)
     if (!newStage) return
-    const previousStage = candidate.stage
-    setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, stage: newStage } : c))
-    const { error } = await supabase.from('candidates').update({ stage: newStage }).eq('id', candidate.id)
-    if (error) {
-      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, stage: previousStage } : c))
-      showToast('Kunde inte flytta kandidaten, försök igen', 'error')
-    }
+    const ok = await persistStageChange([candidate.id], newStage)
+    if (!ok) showToast('Kunde inte flytta kandidaten, försök igen', 'error')
   }
 
   const toggleCandidateSelection = (candidateId: string) => {
@@ -380,11 +373,8 @@ export function useCandidates({
   const bulkMoveSelected = async (newStage: Stage) => {
     const ids = Array.from(selectedCandidateIds)
     if (ids.length === 0) return
-    const previousStages = new Map(candidates.filter(c => ids.includes(c.id)).map(c => [c.id, c.stage]))
-    setCandidates(prev => prev.map(c => ids.includes(c.id) ? { ...c, stage: newStage } : c))
-    const { error } = await supabase.from('candidates').update({ stage: newStage }).in('id', ids)
-    if (error) {
-      setCandidates(prev => prev.map(c => previousStages.has(c.id) ? { ...c, stage: previousStages.get(c.id)! } : c))
+    const ok = await persistStageChange(ids, newStage)
+    if (!ok) {
       showToast('Kunde inte flytta kandidaterna, försök igen', 'error')
       return
     }
@@ -392,7 +382,7 @@ export function useCandidates({
     exitSelectionMode()
   }
 
-  const daysInStage = (candidate: Candidate) => Math.floor((now - new Date(candidate.stage_changed_at).getTime()) / 86400000)
+  const daysInStage = (candidate: Candidate) => Math.floor((now - new Date(candidate.stage_changed_at).getTime()) / MS_PER_DAY)
   const isStale = (candidate: Candidate) => !['hired', 'rejected'].includes(candidate.stage) && daysInStage(candidate) >= STALE_DAYS
 
   const filteredCandidates = candidates.filter(c => {
@@ -420,14 +410,14 @@ export function useCandidates({
     const rejected = scoped.filter(c => c.stage === 'rejected')
     const decided = hired.length + rejected.length
     const successRate = decided > 0 ? Math.round((hired.length / decided) * 100) : null
-    const hireDurations = hired.map(c => (new Date(c.stage_changed_at).getTime() - new Date(c.created_at).getTime()) / 86400000)
+    const hireDurations = hired.map(c => (new Date(c.stage_changed_at).getTime() - new Date(c.created_at).getTime()) / MS_PER_DAY)
     const avgTimeToHireDays = hireDurations.length > 0 ? Math.round(hireDurations.reduce((a, b) => a + b, 0) / hireDurations.length) : null
     const staleCount = scoped.filter(isStale).length
     const byJob = manageableJobs
       .map(job => ({ job, count: scoped.filter(c => c.job_id === job.id).length }))
       .filter(j => j.count > 0)
       .sort((a, b) => b.count - a.count)
-    return { total: scoped.length, byStage, hiredCount: hired.length, rejectedCount: rejected.length, successRate, avgTimeToHireDays, staleCount, byJob }
+    return { total: scoped.length, byStage, hiredCount: hired.length, successRate, avgTimeToHireDays, staleCount, byJob }
   })()
 
   const exportCsv = () => {
