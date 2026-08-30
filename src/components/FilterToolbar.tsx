@@ -63,6 +63,8 @@ export default function FilterToolbar({ auth, ats, searchInputRef }: { auth: Aut
           type="button"
           onClick={() => ats.setShowFavoritesOnly(!ats.showFavoritesOnly)}
           title="Visa bara favoritmarkerade kandidater"
+          aria-label="Visa bara favoritmarkerade kandidater"
+          aria-pressed={ats.showFavoritesOnly}
           className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold border transition ${
             ats.showFavoritesOnly
               ? 'bg-amber-400 border-amber-500 text-amber-950 hover:bg-amber-300'

@@ -442,7 +442,7 @@ export function useCandidates({
 
   const exportCsv = () => {
     const stageTitle = (stageId: Stage) => STAGES.find(s => s.id === stageId)?.title ?? stageId
-    const headers = ['Namn', 'E-post', 'LinkedIn', 'Jobb', ...(isAdmin ? ['Företag'] : []), 'Steg', 'AI-poäng', 'Tillagd']
+    const headers = ['Namn', 'E-post', 'LinkedIn', 'Jobb', ...(isAdmin ? ['Företag'] : []), 'Steg', 'AI-poäng', 'Favorit', 'Intervjudatum', 'Tillagd']
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`
     const rows = filteredCandidates.map(c => {
       const job = jobs.find(j => j.id === c.job_id)
@@ -454,6 +454,8 @@ export function useCandidates({
         ...(isAdmin ? [companyName(c.company_id)] : []),
         stageTitle(c.stage),
         c.ai_assessment ? String(c.ai_assessment.score) : '',
+        c.is_favorite ? 'Ja' : '',
+        c.interview_date ? new Date(c.interview_date).toLocaleDateString('sv-SE') : '',
         new Date(c.created_at).toLocaleDateString('sv-SE'),
       ].map(escape).join(',')
     })

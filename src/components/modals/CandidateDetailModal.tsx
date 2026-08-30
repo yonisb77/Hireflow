@@ -31,11 +31,12 @@ export default function CandidateDetailModal({ auth, ats }: { auth: Auth; ats: A
                 ats.showToast('Länk kopierad')
               }}
               title="Kopiera direktlänk till kandidaten"
+              aria-label="Kopiera direktlänk till kandidaten"
               className="text-slate-400 hover:text-slate-700 p-1"
             >
               <Link2 className="w-4 h-4" />
             </button>
-            <button onClick={ats.closeCandidateModal} className="text-slate-400 hover:text-slate-700 p-1">
+            <button onClick={ats.closeCandidateModal} aria-label="Stäng" className="text-slate-400 hover:text-slate-700 p-1">
               <X className="w-4 h-4" />
             </button>
           </div>

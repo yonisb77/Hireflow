@@ -67,6 +67,7 @@ export default function CandidateCard({ candidate, job, stage, index, auth, ats 
                     type="button"
                     onClick={e => { e.stopPropagation(); ats.toggleFavorite(candidate) }}
                     title={candidate.is_favorite ? 'Ta bort favoritmarkering' : 'Markera som favorit'}
+                    aria-label={candidate.is_favorite ? 'Ta bort favoritmarkering' : 'Markera som favorit'}
                     className={`p-0.5 rounded transition ${candidate.is_favorite ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}
                   >
                     <Star className="w-3.5 h-3.5" fill={candidate.is_favorite ? 'currentColor' : 'none'} />
