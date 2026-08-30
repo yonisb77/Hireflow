@@ -1,3 +1,4 @@
+import confetti from 'canvas-confetti'
 import { AVATAR_COLORS } from './constants'
 import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
@@ -35,6 +36,11 @@ export function applyRealtimeChange<T extends { id: string }>(list: T[], payload
   const next = payload.new as T
   const exists = list.some(item => item.id === next.id)
   return exists ? list.map(item => item.id === next.id ? next : item) : [next, ...list]
+}
+
+// Litet delight-moment när en kandidat markeras "Anställd".
+export const celebrateHire = () => {
+  confetti({ particleCount: 120, spread: 75, origin: { y: 0.6 } })
 }
 
 // Supabase Auth returnerar felmeddelanden på engelska — översätter de vanligaste

@@ -24,6 +24,12 @@ Ett rekryteringssystem (ATS). React + Vite + Tailwind i frontend, Supabase (Post
 - GDPR: CV-filen raderas automatiskt när en kandidat tas bort; en admin/kund kan exportera all lagrad data om en kandidat som JSON
 - Riktig ångra-funktion vid borttagning av kandidat (toast med "Ångra" i 6 sek, inte bara en bekräftelse-dialog)
 - Live-synk mellan flikar/användare (Supabase Realtime) — ändringar i jobb/kandidater dyker upp direkt utan att ladda om sidan, RLS gäller precis som för vanliga frågor
+- Favoritmarkering av kandidater (stjärna på kortet) + filter "bara favoriter"
+- Intervjudatum kan sättas på en kandidat, visas på kortet
+- Varning vid dubblettkandidat (samma namn eller e-post) på samma jobb
+- "Ny"-badge på kandidater tillagda senaste dygnet
+- Kopiera en direktlänk till en specifik kandidat
+- Litet konfetti-moment när en kandidat markeras "Anställd"
 
 ## Datamodell
 

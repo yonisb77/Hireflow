@@ -31,6 +31,9 @@ export default function CandidateModal({ auth, ats }: { auth: Auth; ats: AtsData
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Fullständigt namn</label>
             <input required value={ats.newCandName} onChange={e => ats.setNewCandName(e.target.value)} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white text-slate-800 placeholder:text-slate-400" placeholder="Anna Andersson" />
+            {ats.newCandJobId && ats.newCandName.trim() && ats.candidates.some(c => c.job_id === ats.newCandJobId && c.full_name.trim().toLowerCase() === ats.newCandName.trim().toLowerCase()) && (
+              <p className="text-[11px] text-amber-600 mt-1">Redan en kandidat med samma namn på detta jobb.</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">E-post</label>

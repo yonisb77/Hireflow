@@ -26,6 +26,22 @@ export default function App() {
   const ats = useAtsData(auth.session, auth.profile, auth.isAdmin, showToast)
   const searchInputRef = useRef<HTMLInputElement>(null)
 
+  // Öppnar kandidaten automatiskt om sidan laddas med ?candidate=<id> i URL:en
+  // (från "Kopiera länk"-knappen). Väntar tyst tills kandidaten finns i den
+  // hämtade listan (RLS avgör om anroparen ens får se den), öppnar en gång.
+  const openedFromLinkRef = useRef(false)
+  useEffect(() => {
+    if (openedFromLinkRef.current) return
+    const id = new URLSearchParams(window.location.search).get('candidate')
+    if (!id) { openedFromLinkRef.current = true; return }
+    const candidate = ats.candidates.find(c => c.id === id)
+    if (!candidate) return
+    ats.openCandidate(candidate)
+    openedFromLinkRef.current = true
+    window.history.replaceState({}, '', window.location.pathname)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ats.candidates])
+
   // Escape stänger vilken modal som helst är öppen, precis som klick utanför.
   // "/" fokuserar sökfältet direkt, så länge man inte redan skriver i ett fält.
   useEffect(() => {

@@ -50,6 +50,7 @@ export function useAtsData(
     candidates: query.candidates, setCandidates: query.setCandidates,
     jobs: query.jobs, manageableJobs: jobsHook.manageableJobs, companyName: companiesHook.companyName,
     selectedJob: filters.selectedJob, selectedCompany: filters.selectedCompany, searchQuery: filters.searchQuery,
+    showFavoritesOnly: filters.showFavoritesOnly,
   })
 
   // Underlag för "Behöver uppmärksamhet"-raden — räknar över alla jobb/kandidater

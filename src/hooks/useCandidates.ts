@@ -6,7 +6,7 @@ import type { Json } from '../database.types'
 import type { Session } from '@supabase/supabase-js'
 import type { DropResult } from '@hello-pangea/dnd'
 import { STAGES, STAGE_ORDER, STALE_DAYS, MS_PER_DAY, UNDO_WINDOW_MS } from '../constants'
-import { sanitizeFilename, timeAgo as timeAgoUtil } from '../utils'
+import { sanitizeFilename, timeAgo as timeAgoUtil, celebrateHire } from '../utils'
 
 interface Params {
   session: Session | null
@@ -20,6 +20,7 @@ interface Params {
   selectedJob: string
   selectedCompany: string
   searchQuery: string
+  showFavoritesOnly: boolean
 }
 
 // Allt som rör kandidater: skapa/redigera/ta bort/återställ, anteckningar,
@@ -27,7 +28,7 @@ interface Params {
 // filtrerade listor och statistik som resten av appen läser.
 export function useCandidates({
   session, isAdmin, showToast, candidates, setCandidates, jobs, manageableJobs, companyName,
-  selectedJob, selectedCompany, searchQuery,
+  selectedJob, selectedCompany, searchQuery, showFavoritesOnly,
 }: Params) {
   const [showCandidateModal, setShowCandidateModal] = useState(false)
   const [showStatsModal, setShowStatsModal] = useState(false)
@@ -43,7 +44,7 @@ export function useCandidates({
   const [resumeBusy, setResumeBusy] = useState(false)
 
   const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null)
-  const [editDraft, setEditDraft] = useState({ full_name: '', email: '', linkedin_url: '', notes: '', stage: 'sourcing' as Stage, rejection_reason: '' })
+  const [editDraft, setEditDraft] = useState({ full_name: '', email: '', linkedin_url: '', notes: '', stage: 'sourcing' as Stage, rejection_reason: '', interview_date: '' })
   const [savingCandidate, setSavingCandidate] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
@@ -148,6 +149,7 @@ export function useCandidates({
       notes: candidate.notes || '',
       stage: candidate.stage,
       rejection_reason: candidate.rejection_reason || '',
+      interview_date: candidate.interview_date || '',
     })
     setAiError(null)
     setSaveError(null)
@@ -175,12 +177,14 @@ export function useCandidates({
       notes: editDraft.notes || null,
       stage: editDraft.stage,
       rejection_reason: editDraft.stage === 'rejected' ? (editDraft.rejection_reason || null) : null,
+      interview_date: editDraft.interview_date || null,
     }).eq('id', selectedCandidate.id).select().single().returns<Candidate>()
     setSavingCandidate(false)
     if (error || !data) {
       setSaveError(error?.message || 'Kunde inte spara')
       return
     }
+    if (data.stage === 'hired' && selectedCandidate.stage !== 'hired') celebrateHire()
     setCandidates(prev => prev.map(c => c.id === data.id ? data : c))
     setSelectedCandidate(null)
     showToast('Kandidat uppdaterad')
@@ -256,6 +260,8 @@ export function useCandidates({
       rejection_reason: candidate.rejection_reason,
       resume_path: candidate.resume_path,
       ai_assessment: candidate.ai_assessment as unknown as Json,
+      is_favorite: candidate.is_favorite,
+      interview_date: candidate.interview_date,
     }]).select().single().returns<Candidate>()
     if (error || !data) {
       showToast('Kunde inte återställa kandidaten', 'error')
@@ -330,6 +336,8 @@ export function useCandidates({
     const { error } = await supabase.from('candidates').update({ stage: newStage }).in('id', ids)
     if (error) {
       setCandidates(prev => prev.map(c => previousStages.has(c.id) ? { ...c, stage: previousStages.get(c.id)! } : c))
+    } else if (newStage === 'hired') {
+      celebrateHire()
     }
     return !error
   }
@@ -384,15 +392,27 @@ export function useCandidates({
 
   const daysInStage = (candidate: Candidate) => Math.floor((now - new Date(candidate.stage_changed_at).getTime()) / MS_PER_DAY)
   const isStale = (candidate: Candidate) => !['hired', 'rejected'].includes(candidate.stage) && daysInStage(candidate) >= STALE_DAYS
+  const isNew = (candidate: Candidate) => now - new Date(candidate.created_at).getTime() < MS_PER_DAY
+
+  const toggleFavorite = async (candidate: Candidate) => {
+    const nextValue = !candidate.is_favorite
+    setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, is_favorite: nextValue } : c))
+    const { error } = await supabase.from('candidates').update({ is_favorite: nextValue }).eq('id', candidate.id)
+    if (error) {
+      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, is_favorite: !nextValue } : c))
+      showToast('Kunde inte uppdatera favorit', 'error')
+    }
+  }
 
   const filteredCandidates = candidates.filter(c => {
     const matchesCompany = !isAdmin || selectedCompany === 'all' || c.company_id === selectedCompany
     const matchesJob = selectedJob === 'all' || c.job_id === selectedJob
+    const matchesFavorite = !showFavoritesOnly || c.is_favorite
     const q = searchQuery.toLowerCase()
     const matchesSearch = c.full_name.toLowerCase().includes(q) ||
                           (c.email && c.email.toLowerCase().includes(q)) ||
                           (c.notes && c.notes.toLowerCase().includes(q))
-    return matchesCompany && matchesJob && matchesSearch
+    return matchesCompany && matchesJob && matchesFavorite && matchesSearch
   })
 
   // Kandidaten med högst AI-poäng för det valda jobbet — får en krona istället för standardbadgen.
@@ -456,7 +476,7 @@ export function useCandidates({
     rankingBusy, rankingProgress,
     candidateNotes, notesLoading, newNoteText, setNewNoteText, noteBusy, noteError,
     selectionMode, setSelectionMode, selectedCandidateIds, toggleCandidateSelection, exitSelectionMode, bulkMoveSelected,
-    now, timeAgo, daysInStage, isStale, nextStage,
+    now, timeAgo, daysInStage, isStale, isNew, nextStage, toggleFavorite,
     createCandidate, uploadResumeFile, viewResume,
     openCandidate, closeCandidateModal, saveCandidate, addNote, deleteCandidate, restoreCandidate, exportCandidateData,
     assessCandidate, rankCandidatesForJob, onDragEnd, advanceStage,

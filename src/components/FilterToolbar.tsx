@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { BarChart3, CheckSquare, ChevronDown, Download, FilterX, Plus, Search, Settings2, ShieldCheck, Sparkles, User, X } from 'lucide-react'
+import { BarChart3, CheckSquare, ChevronDown, Download, FilterX, Plus, Search, Settings2, ShieldCheck, Sparkles, Star, User, X } from 'lucide-react'
 import type { Auth } from '../hooks/useAuth'
 import type { AtsData } from '../hooks/useAtsData'
 
@@ -58,6 +58,19 @@ export default function FilterToolbar({ auth, ats, searchInputRef }: { auth: Aut
           </select>
           <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500" />
         </div>
+
+        <button
+          type="button"
+          onClick={() => ats.setShowFavoritesOnly(!ats.showFavoritesOnly)}
+          title="Visa bara favoritmarkerade kandidater"
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold border transition ${
+            ats.showFavoritesOnly
+              ? 'bg-amber-400 border-amber-500 text-amber-950 hover:bg-amber-300'
+              : 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200 hover:border-blue-400'
+          }`}
+        >
+          <Star className="w-3.5 h-3.5" fill={ats.showFavoritesOnly ? 'currentColor' : 'none'} /> <span className="hidden sm:inline">Favoriter</span>
+        </button>
 
         {/* Individuellt borttagningsbara filterchips, istället för att bara nollställa allt på en gång. */}
         {ats.searchQuery.trim() && (

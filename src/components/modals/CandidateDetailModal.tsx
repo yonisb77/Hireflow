@@ -1,4 +1,4 @@
-import { Copy, MessageSquare, Paperclip, ShieldAlert, Sparkles, Trash2, User, X } from 'lucide-react'
+import { Copy, Link2, MessageSquare, Paperclip, ShieldAlert, Sparkles, Trash2, User, X } from 'lucide-react'
 import { STAGES } from '../../constants'
 import type { Stage } from '../../types'
 import type { Auth } from '../../hooks/useAuth'
@@ -22,9 +22,23 @@ export default function CandidateDetailModal({ auth, ats }: { auth: Auth; ats: A
             </h2>
             <p className="text-[11px] text-slate-400 mt-1 ml-9">Tillagd {ats.timeAgo(candidate.created_at)}</p>
           </div>
-          <button onClick={ats.closeCandidateModal} className="text-slate-400 hover:text-slate-700">
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                const url = `${window.location.origin}${window.location.pathname}?candidate=${candidate.id}`
+                navigator.clipboard.writeText(url)
+                ats.showToast('Länk kopierad')
+              }}
+              title="Kopiera direktlänk till kandidaten"
+              className="text-slate-400 hover:text-slate-700 p-1"
+            >
+              <Link2 className="w-4 h-4" />
+            </button>
+            <button onClick={ats.closeCandidateModal} className="text-slate-400 hover:text-slate-700 p-1">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         <form onSubmit={ats.saveCandidate} className="space-y-3">
@@ -60,6 +74,10 @@ export default function CandidateDetailModal({ auth, ats }: { auth: Auth; ats: A
             <select value={ats.editDraft.stage} onChange={e => ats.setEditDraft({ ...ats.editDraft, stage: e.target.value as Stage })} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white">
               {STAGES.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1">Intervjudatum (valfritt)</label>
+            <input type="date" value={ats.editDraft.interview_date} onChange={e => ats.setEditDraft({ ...ats.editDraft, interview_date: e.target.value })} className="w-full px-3 py-1.5 border rounded-lg text-sm bg-white text-slate-800" />
           </div>
           {ats.editDraft.stage === 'rejected' && (
             <div>
