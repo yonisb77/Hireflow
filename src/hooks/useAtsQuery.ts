@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient'
 import { invokeEdgeFunction } from '../edgeFunctions'
+import { applyRealtimeChange } from '../utils'
 import type { Job, Candidate, Profile } from '../types'
 
 // Datahämtningslagret: äger de råa listorna (jobb, kandidater, kunder,
@@ -42,6 +43,24 @@ export function useAtsQuery(profile: Profile | null) {
     // det, den flaggar varje effekt som anropar en funktion som ens sätter state.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (profile) fetchData(profile)
+  }, [profile])
+
+  // Live-synk mellan flikar/användare: `jobs`/`candidates` är redan
+  // publicerade för Realtime (migration 0003) — prenumererar bara på dem här.
+  // RLS gäller även Realtime, så en kund får bara ändringar på sina egna rader.
+  useEffect(() => {
+    if (!profile) return
+    const channel = supabase
+      .channel('ats-changes')
+      .on<Job>('postgres_changes', { event: '*', schema: 'public', table: 'jobs' }, payload => {
+        setJobs(prev => applyRealtimeChange(prev, payload))
+      })
+      .on<Candidate>('postgres_changes', { event: '*', schema: 'public', table: 'candidates' }, payload => {
+        setCandidates(prev => applyRealtimeChange(prev, payload))
+      })
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [profile])
 
   return {

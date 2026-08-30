@@ -23,6 +23,7 @@ Ett rekryteringssystem (ATS). React + Vite + Tailwind i frontend, Supabase (Post
 - Statistik: andel anställda av avgjorda, snittid till anställning, kandidater per steg/jobb, antal inaktiva (≥14 dagar utan förändring) — speglar aktiva filter
 - GDPR: CV-filen raderas automatiskt när en kandidat tas bort; en admin/kund kan exportera all lagrad data om en kandidat som JSON
 - Riktig ångra-funktion vid borttagning av kandidat (toast med "Ångra" i 6 sek, inte bara en bekräftelse-dialog)
+- Live-synk mellan flikar/användare (Supabase Realtime) — ändringar i jobb/kandidater dyker upp direkt utan att ladda om sidan, RLS gäller precis som för vanliga frågor
 
 ## Datamodell
 
@@ -38,7 +39,7 @@ RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (k
 2. **Kör migrationerna** i ordning i SQL Editor i Supabase-dashboarden:
    - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — schema, RLS, triggers
    - [`supabase/migrations/0002_ai_assessment.sql`](supabase/migrations/0002_ai_assessment.sql) — kolumner för AI-bedömning
-   - [`supabase/migrations/0003_realtime.sql`](supabase/migrations/0003_realtime.sql) — aktiverar realtidspublicering i databasen (Postgres, förberedande — används inte av frontend i nuläget)
+   - [`supabase/migrations/0003_realtime.sql`](supabase/migrations/0003_realtime.sql) — aktiverar realtidspublicering i databasen; frontend prenumererar på den (`useAtsQuery`) för att synka jobb/kandidater live mellan flikar/användare
    - [`supabase/migrations/0004_job_status_and_stage_time.sql`](supabase/migrations/0004_job_status_and_stage_time.sql) — jobbstatus + tidsspårning per steg
    - [`supabase/migrations/0005_prevent_role_escalation.sql`](supabase/migrations/0005_prevent_role_escalation.sql) — täpper till en privilege-escalation-lucka i `profiles`-policyn (se kommentar i filen)
    - [`supabase/migrations/0006_enforce_job_status_on_insert.sql`](supabase/migrations/0006_enforce_job_status_on_insert.sql) — flyttar "stängt jobb"-kontrollen från UI till RLS

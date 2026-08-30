@@ -1,4 +1,5 @@
 import { AVATAR_COLORS } from './constants'
+import type { RealtimePostgresChangesPayload } from '@supabase/supabase-js'
 
 export const avatarColor = (name: string) => {
   const hash = name.split('').reduce((acc, ch) => acc + ch.charCodeAt(0), 0)
@@ -21,6 +22,19 @@ export const timeAgo = (isoDate: string, now: number): string => {
   if (days < 30) return `${days} ${days === 1 ? 'dag' : 'dagar'} sedan`
   const months = Math.floor(days / 30)
   return `${months} ${months === 1 ? 'månad' : 'månader'} sedan`
+}
+
+// Slår in en Realtime postgres_changes-händelse i en lokal lista: uppdaterar
+// raden om id:t redan finns (egna optimistiska ändringar ekar tillbaka som
+// no-ops), lägger till den överst annars, tar bort den vid DELETE.
+export function applyRealtimeChange<T extends { id: string }>(list: T[], payload: RealtimePostgresChangesPayload<T>): T[] {
+  if (payload.eventType === 'DELETE') {
+    const deletedId = (payload.old as { id?: string }).id
+    return deletedId ? list.filter(item => item.id !== deletedId) : list
+  }
+  const next = payload.new as T
+  const exists = list.some(item => item.id === next.id)
+  return exists ? list.map(item => item.id === next.id ? next : item) : [next, ...list]
 }
 
 // Supabase Auth returnerar felmeddelanden på engelska — översätter de vanligaste
