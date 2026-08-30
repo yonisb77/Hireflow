@@ -90,3 +90,5 @@ Admin använder knappen "Skapa konto" för att skicka en e-postinbjudan (via `su
 ## Hur AI-bedömning fungerar
 
 På en kandidats detaljvy kan man klicka "AI-bedöm mot jobbet". Edge-funktionen `assess-candidate` hämtar kandidatens profil (namn, LinkedIn, anteckningar), jobbets titel/avdelning/beskrivning — via anroparens egen inloggning, så RLS skyddar automatiskt mot att bedöma andras kandidater — samt, om ett CV är bifogat, laddar ner filen från Storage och textextraherar den (PDF via `unpdf`, DOCX via `mammoth`; äldre `.doc`-format och skannade bild-PDF:er utan textlager stöds inte och faller tillbaka på profilinformationen). Allt skickas till Claude med en instruktion om att svara med strukturerad JSON (poäng 1–10, sammanfattning, styrkor, svagheter), och resultatet sparas på kandidaten.
+
+**Kostnadsskydd:** en kandidat kan inte bedömas om igen förrän 60 sekunder gått sedan senaste bedömningen (kollas server-side mot `ai_assessed_at`, går inte att kringgå från klienten) — förhindrar att upprepad klickning eller massrankning drar onödiga Anthropic-krediter.

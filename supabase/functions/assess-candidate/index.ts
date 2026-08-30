@@ -34,6 +34,12 @@ interface Assessment {
 
 const MAX_RESUME_CHARS = 8000
 
+// Kostnadsskydd: varje Anthropic-anrop kostar pengar, så en kandidat kan inte
+// bedömas om igen förrän cooldownen gått ut. Gäller lika för enskild bedömning
+// och massrankning (loopen i rankCandidatesForJob räknar då bara den
+// kandidaten som inte lyckad — ingen separat hantering behövs där).
+const REASSESS_COOLDOWN_MS = 60_000
+
 // Laddar ner CV-filen (skyddad av samma RLS som anroparens övriga läsningar)
 // och textextraherar den. Returnerar null om filen saknas, formatet inte
 // stöds (t.ex. gammalt .doc) eller extraktionen misslyckas (t.ex. skannad
@@ -87,6 +93,14 @@ Deno.serve(async (req) => {
       .eq('id', candidate_id)
       .single()
     if (candidateError || !candidate) throw new Error('Kandidaten hittades inte eller är inte tillgänglig')
+
+    if (candidate.ai_assessed_at) {
+      const elapsedMs = Date.now() - new Date(candidate.ai_assessed_at).getTime()
+      if (elapsedMs < REASSESS_COOLDOWN_MS) {
+        const waitSeconds = Math.ceil((REASSESS_COOLDOWN_MS - elapsedMs) / 1000)
+        throw new Error(`Kandidaten bedömdes nyligen — vänta ${waitSeconds} sekund${waitSeconds === 1 ? '' : 'er'} innan du bedömer igen`)
+      }
+    }
 
     const { data: job } = await supabase
       .from('jobs')
