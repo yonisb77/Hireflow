@@ -7,6 +7,10 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20Edge-3ecf8e?logo=supabase&logoColor=white)](https://supabase.com)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06b6d4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
+[![Claude AI](https://img.shields.io/badge/AI-Claude-d97757?logo=anthropic&logoColor=white)](https://anthropic.com)
+[![Row Level Security](https://img.shields.io/badge/Multi--tenant-Row%20Level%20Security-0ea5e9)]()
+[![Realtime](https://img.shields.io/badge/Live%20sync-Realtime-a855f7)]()
+[![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088ff?logo=githubactions&logoColor=white)]()
 
 **Live-demo:** https://hireflow-mini-ats.vercel.app
 
@@ -22,37 +26,14 @@
 
 ## Funktioner
 
-**Kärnan**
-- Admin skapar admin- och kundkonton (inbjudan via e-post, ingen öppen registrering)
-- Kunder loggar in och hanterar sina egna jobb och kandidater
-- Kanban-vy över kandidater per steg (Sökning → Urval → Intervju → Erbjudande → Anställd/Avvisad), drag-and-drop
-- Filtrera vyn på jobb och kandidatnamn (matchar även anteckningar)
-- Admin ser och kan agera åt alla kunder (extra företagsfilter + företagsväljare i modalerna för jobb/kandidat)
-
-**AI-bedömning**
-- AI-bedömning av kandidater mot jobbet (Claude) — läser faktiskt CV-textens innehåll (PDF/Word), inte bara om en fil finns
-- Jobb kan ha en beskrivning/kravprofil (redigerbar), som AI-bedömningen använder för bättre matchning
-- Kostnadsskydd: en kandidat kan inte bedömas om igen förrän 60 sekunder gått, kollas server-side
-
-**Kandidathantering**
-- Kandidater kan ha ett bifogat CV (PDF/Word, lagras privat i Supabase Storage, max 5 MB)
-- Anteckningstidslinje per kandidat — flera personer kan lägga till tidsstämplade kommentarer utan att skriva över varandra
-- Anledning till avslag kan anges när en kandidat markeras "Avvisad"
-- Favoritmarkering av kandidater (stjärna på kortet) + filter "bara favoriter"
-- Intervjudatum kan sättas på en kandidat, visas på kortet
-- Varning vid dubblettkandidat (samma namn eller e-post) på samma jobb
-- "Ny"-badge på kandidater tillagda senaste dygnet
-- Kopiera en direktlänk till en specifik kandidat
-- Varje kandidatkort visar hur länge de suttit i sitt nuvarande steg, med en varning om det gått ≥14 dagar
-- Riktig ångra-funktion vid borttagning av kandidat (toast med "Ångra" i 6 sek, inte bara en bekräftelse-dialog)
-- Litet konfetti-moment när en kandidat markeras "Anställd"
-
-**Jobb & administration**
-- Jobb kan stängas ("Öppen"/"Stängd") utan att raderas — hindrar nya kandidater men behåller historiken
-- Ta bort jobb ("Hantera jobb") och, för admin, ta bort kundkonton ("Hantera företag") — kaskaderar bort tillhörande jobb/kandidater
-- Exportera nuvarande (filtrerade) kandidatlista som CSV
-- Statistik: andel anställda av avgjorda, snittid till anställning, kandidater per steg/jobb, antal inaktiva (≥14 dagar utan förändring) — speglar aktiva filter
-- Användarmeny (klick på namnet i headern) med byt lösenord, admin-åtgärder och utloggning samlat på ett ställe
+- Admin bjuder in admin-/kundkonton via mejl, ingen öppen registrering
+- Kanban-vy per jobb, drag-and-drop, filter på jobb/namn
+- Admin kan agera åt vilken kund som helst
+- AI-bedömning (Claude) läser faktiskt CV-textens innehåll, inte bara att filen finns — med kostnadsskydd mot spam-klick
+- CV-uppladdning, anteckningstidslinje, favoriter, intervjudatum, dubblettvarning
+- Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
+- Live-synk mellan flikar/användare (Realtime)
+- Multi-tenant dataisolering i databasen (Row Level Security), inte bara UI:t
 
 **Säkerhet, drift & kvalitet**
 - Multi-tenant dataisolering upprätthålls i databasen via Postgres Row Level Security, inte bara i UI:t
