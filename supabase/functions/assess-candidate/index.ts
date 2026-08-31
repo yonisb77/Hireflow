@@ -1,12 +1,13 @@
 // Enkel AI-bedömning av kandidat: poängsätter en kandidats profil (namn,
-// anteckningar, LinkedIn, CV-textinnehåll) mot jobbet de sökt, med hjälp av Claude.
+// anteckningar, LinkedIn, CV-textinnehåll) mot jobbet de sökt, med hjälp av
+// Gemini (google generativelanguage API).
 //
 // CV-filen (PDF/DOCX) hämtas från Storage och textextraheras innan den skickas
-// till Claude. Äldre .doc-format (binärt) och skannade bild-PDF:er stöds inte
-// för textextraktion — bedömningen faller då tillbaka på profilinformationen.
+// till modellen. Äldre .doc-format (binärt) och skannade bild-PDF:er stöds
+// inte för textextraktion — bedömningen faller då tillbaka på profilinformationen.
 //
 // Deploy: supabase functions deploy assess-candidate
-// Kräver secreten: supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+// Kräver secreten: supabase secrets set GEMINI_API_KEY=...
 //
 // Körs med anroparens egen JWT (inte service role) så Postgres RLS
 // säkerställer att en kund bara kan bedöma sina egna kandidater (gäller även
@@ -18,7 +19,8 @@ import mammoth from 'npm:mammoth@1.12.2'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -34,10 +36,11 @@ interface Assessment {
 
 const MAX_RESUME_CHARS = 8000
 
-// Kostnadsskydd: varje Anthropic-anrop kostar pengar, så en kandidat kan inte
-// bedömas om igen förrän cooldownen gått ut. Gäller lika för enskild bedömning
-// och massrankning (loopen i rankCandidatesForJob räknar då bara den
-// kandidaten som inte lyckad — ingen separat hantering behövs där).
+// Kostnadsskydd: varje AI-anrop kostar (eller förbrukar gratiskvot), så en
+// kandidat kan inte bedömas om igen förrän cooldownen gått ut. Gäller lika
+// för enskild bedömning och massrankning (loopen i rankCandidatesForJob
+// räknar då bara den kandidaten som inte lyckad — ingen separat hantering
+// behövs där).
 const REASSESS_COOLDOWN_MS = 60_000
 
 // Laddar ner CV-filen (skyddad av samma RLS som anroparens övriga läsningar)
@@ -133,19 +136,17 @@ Ge en kort, ärlig bedömning. Om CV-innehåll finns ovan, väg in det tyngre ä
 
 Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt score till 5 och säg det i summary.`
 
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+    const aiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { maxOutputTokens: 1000, responseMimeType: 'application/json' },
+        }),
       },
-      body: JSON.stringify({
-        model: 'claude-sonnet-5',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    })
+    )
 
     if (!aiRes.ok) {
       const errText = await aiRes.text()
@@ -153,7 +154,7 @@ Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt s
     }
 
     const aiJson = await aiRes.json()
-    const rawText: string = aiJson.content?.[0]?.text ?? ''
+    const rawText: string = aiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
     const jsonMatch = rawText.match(/\{[\s\S]*\}/)
     if (!jsonMatch) throw new Error('AI-svaret innehöll ingen giltig JSON')
 

@@ -7,7 +7,7 @@
 [![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth%20%2B%20Edge-3ecf8e?logo=supabase&logoColor=white)](https://supabase.com)
 [![Vite](https://img.shields.io/badge/Vite-8-646cff?logo=vite&logoColor=white)](https://vite.dev)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-4-06b6d4?logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
-[![Claude AI](https://img.shields.io/badge/AI-Claude-d97757?logo=anthropic&logoColor=white)](https://anthropic.com)
+[![Gemini AI](https://img.shields.io/badge/AI-Gemini-4285F4?logo=googlegemini&logoColor=white)](https://ai.google.dev)
 [![Row Level Security](https://img.shields.io/badge/Multi--tenant-Row%20Level%20Security-0ea5e9)]()
 [![Realtime](https://img.shields.io/badge/Live%20sync-Realtime-a855f7)]()
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088ff?logo=githubactions&logoColor=white)]()
@@ -26,7 +26,7 @@
 - Admin bjuder in admin-/kundkonton via mejl, ingen öppen registrering
 - Kanban-vy per jobb, drag-and-drop, filter på jobb/namn
 - Admin kan agera åt vilken kund som helst
-- AI-bedömning (Claude) av kandidater mot jobbets kravprofil, inklusive bifogat CV
+- AI-bedömning (Gemini) av kandidater mot jobbets kravprofil, inklusive bifogat CV
 - CV-uppladdning, anteckningstidslinje, favoriter, intervjudatum, dubblettvarning
 - Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
 - Live-synk mellan flikar/användare (Realtime)
@@ -46,7 +46,7 @@
    npx supabase functions deploy create-user
    npx supabase functions deploy delete-user
    npx supabase functions deploy assess-candidate
-   npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-din-nyckel
+   npx supabase secrets set GEMINI_API_KEY=din-gemini-nyckel
    ```
 3. Skapa första admin-kontot manuellt (Supabase Dashboard → Authentication → Add user, sätt sedan `role = 'admin'` i `profiles`-tabellen).
 4. Kopiera `.env.example` till `.env`, fyll i Supabase-URL + anon-nyckel + `VITE_ADMIN_SHORTCUT_EMAIL` (samma adress som admin-kontot ovan)
@@ -62,4 +62,4 @@ Kunder loggar in med e-post. Admin skriver "Admin" i fältet, vilket slår upp d
 
 ## Hur AI-bedömning fungerar
 
-"AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Claude, som svarar med poäng och motivering.
+"AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Gemini, som svarar med poäng och motivering.
