@@ -26,12 +26,11 @@
 - Admin bjuder in admin-/kundkonton via mejl, ingen öppen registrering
 - Kanban-vy per jobb, drag-and-drop, filter på jobb/namn
 - Admin kan agera åt vilken kund som helst
-- AI-bedömning (Claude) läser faktiskt CV-textens innehåll, inte bara att filen finns — med kostnadsskydd mot spam-klick
+- AI-bedömning (Claude) av kandidater mot jobbets kravprofil, inklusive bifogat CV
 - CV-uppladdning, anteckningstidslinje, favoriter, intervjudatum, dubblettvarning
 - Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
 - Live-synk mellan flikar/användare (Realtime)
-- Multi-tenant dataisolering i databasen (Row Level Security), inte bara UI:t
-- TypeScript strict mode, CI kör lint + build på varje push
+- Multi-tenant dataisolering i databasen (Row Level Security)
 
 ## Datamodell
 
@@ -63,4 +62,4 @@ Kunder loggar in med e-post. Admin skriver "Admin" i fältet, vilket slår upp d
 
 ## Hur AI-bedömning fungerar
 
-"AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Claude, som svarar med poäng + motivering. Kostnadsskydd: samma kandidat kan inte bedömas om igen förrän 60 sekunder gått, kollas server-side.
+"AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Claude, som svarar med poäng och motivering.
