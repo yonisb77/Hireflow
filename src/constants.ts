@@ -31,7 +31,8 @@ export const AVATAR_COLORS = [
 
 // Admin loggar in med "Admin" istället för e-post — Supabase Auth kräver
 // ändå en riktig e-post server-side, så det här slår bara upp den bakom kulisserna.
-export const ADMIN_SHORTCUT_EMAIL = 'yonis_77@hotmail.com'
+// Satt via miljövariabel, inte hårdkodad, så den riktiga adressen inte hamnar i publik kod.
+export const ADMIN_SHORTCUT_EMAIL = import.meta.env.VITE_ADMIN_SHORTCUT_EMAIL ?? ''
 
 export const STALE_DAYS = 14
 export const WIP_LIMIT = 8

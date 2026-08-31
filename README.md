@@ -51,8 +51,8 @@
    npx supabase functions deploy assess-candidate
    npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-din-nyckel
    ```
-3. Skapa första admin-kontot manuellt (Supabase Dashboard → Authentication → Add user, sätt sedan `role = 'admin'` i `profiles`-tabellen). Uppdatera `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx` till samma adress.
-4. Kopiera `.env.example` till `.env`, fyll i Supabase-URL + anon-nyckel
+3. Skapa första admin-kontot manuellt (Supabase Dashboard → Authentication → Add user, sätt sedan `role = 'admin'` i `profiles`-tabellen).
+4. Kopiera `.env.example` till `.env`, fyll i Supabase-URL + anon-nyckel + `VITE_ADMIN_SHORTCUT_EMAIL` (samma adress som admin-kontot ovan)
 5. `npm install && npm run dev`
 
 ## Driftsätta frontend
