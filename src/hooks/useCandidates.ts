@@ -372,7 +372,10 @@ export function useCandidates({
   const onDragEnd = async (result: DropResult) => {
     const { destination, source, draggableId } = result
     if (!destination) return
-    if (destination.droppableId === source.droppableId) return
+    if (destination.droppableId === source.droppableId) {
+      showToast('Kolumnerna sorteras efter AI-poäng')
+      return
+    }
 
     const newStage = destination.droppableId as Stage
     const ok = await persistStageChange([draggableId], newStage)

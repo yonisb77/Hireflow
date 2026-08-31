@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { DragDropContext, Droppable } from '@hello-pangea/dnd'
 import { AlertCircle, FilterX, Plus, X } from 'lucide-react'
 import HireflowMark from './HireflowMark'
@@ -9,12 +8,6 @@ import type { Auth } from '../hooks/useAuth'
 import type { AtsData } from '../hooks/useAtsData'
 
 export default function KanbanBoard({ auth, ats }: { auth: Auth; ats: AtsData }) {
-  // Kolumnerna sorteras alltid om efter AI-poäng, så ett drag inom samma
-  // kolumn kan aldrig ändra ordningen — isDropDisabled ger tydlig
-  // "inte tillåtet"-feedback istället för ett drag som verkar göra nåt
-  // men tyst studsar tillbaka.
-  const [dragSourceStage, setDragSourceStage] = useState<string | null>(null)
-
   return (
     <>
       {ats.dataError && (
@@ -81,10 +74,7 @@ export default function KanbanBoard({ auth, ats }: { auth: Auth; ats: AtsData })
         </div>
       ) : (
         <div className="flex-1 p-3 sm:p-6 overflow-x-auto slim-scroll snap-x snap-mandatory">
-          <DragDropContext
-            onDragStart={start => setDragSourceStage(start.source.droppableId)}
-            onDragEnd={result => { setDragSourceStage(null); ats.onDragEnd(result) }}
-          >
+          <DragDropContext onDragEnd={ats.onDragEnd}>
             <div className="flex gap-3 sm:gap-4 h-full lg:min-w-[1200px]">
               {STAGES.map((stage, stageIndex) => {
                 const stageCandidates = ats.filteredCandidates
@@ -117,7 +107,7 @@ export default function KanbanBoard({ auth, ats }: { auth: Auth; ats: AtsData })
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isOverWipLimit ? 'bg-amber-200 text-amber-800' : stage.badge}`}>{stageCandidates.length}</span>
                     </div>
 
-                    <Droppable droppableId={stage.id} isDropDisabled={dragSourceStage === stage.id}>
+                    <Droppable droppableId={stage.id}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}

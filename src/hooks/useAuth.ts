@@ -60,7 +60,7 @@ export function useAuth(showToast: (message: string, type?: 'success' | 'error')
       return
     }
     setLoading(true)
-    const resolvedEmail = typed === 'admin' ? ADMIN_SHORTCUT_EMAIL : email
+    const resolvedEmail = typed === 'admin' ? ADMIN_SHORTCUT_EMAIL : typed
     const { error } = await supabase.auth.signInWithPassword({ email: resolvedEmail, password })
     if (error) setAuthError(translateAuthError(error.message))
     setLoading(false)
