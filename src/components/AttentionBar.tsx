@@ -1,4 +1,5 @@
 import { AlertTriangle } from 'lucide-react'
+import { STALE_DAYS } from '../constants'
 import type { AtsData } from '../hooks/useAtsData'
 
 // Samlar det som annars ligger utspritt som små märken i kanban-vyn
@@ -14,7 +15,7 @@ export default function AttentionBar({ ats }: { ats: AtsData }) {
       </span>
       {ats.staleCandidateCount > 0 && (
         <button type="button" onClick={() => ats.setShowStatsModal(true)} className="hover:text-white hover:underline underline-offset-2 transition">
-          {ats.staleCandidateCount} {ats.staleCandidateCount === 1 ? 'kandidat har' : 'kandidater har'} väntat ≥14 dagar
+          {ats.staleCandidateCount} {ats.staleCandidateCount === 1 ? 'kandidat har' : 'kandidater har'} väntat ≥{STALE_DAYS} dagar
         </button>
       )}
       {ats.closableJobCount > 0 && (

@@ -47,6 +47,7 @@ export default function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if (auth.showForgotModal) { auth.setShowForgotModal(false); return }
         if (ats.selectedCandidate) ats.closeCandidateModal()
         else if (ats.editingJob) ats.closeJobEdit()
         else if (ats.showJobModal) { ats.setShowJobModal(false); ats.setJobError(null) }

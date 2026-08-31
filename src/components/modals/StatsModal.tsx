@@ -1,5 +1,5 @@
 import { BarChart3, X } from 'lucide-react'
-import { STAGES } from '../../constants'
+import { STAGES, STALE_DAYS } from '../../constants'
 import type { AtsData } from '../../hooks/useAtsData'
 
 export default function StatsModal({ ats }: { ats: AtsData }) {
@@ -38,7 +38,7 @@ export default function StatsModal({ ats }: { ats: AtsData }) {
           </div>
           <div className={`border rounded-lg p-3 ${stats.staleCount > 0 ? 'bg-amber-50 border-amber-100' : 'bg-slate-50 border-slate-100'}`}>
             <div className={`text-2xl font-bold ${stats.staleCount > 0 ? 'text-amber-700' : 'text-slate-800'}`}>{stats.staleCount}</div>
-            <div className="text-[11px] text-slate-500">Inaktiva ≥14 dagar</div>
+            <div className="text-[11px] text-slate-500">Inaktiva ≥{STALE_DAYS} dagar</div>
           </div>
         </div>
 

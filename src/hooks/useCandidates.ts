@@ -224,6 +224,10 @@ export function useCandidates({
   const deleteCandidate = async () => {
     if (!selectedCandidate) return
     const candidate = selectedCandidate
+    // Ögonblicksbild av anteckningarna för Ångra — candidateNotes-state kan
+    // hinna ändras (t.ex. om en annan kandidat öppnas) innan ångra-fönstret
+    // stängs, så vi kan inte läsa live-state i restoreCandidate senare.
+    const notesSnapshot = candidateNotes
     setSavingCandidate(true)
     const { error } = await supabase.from('candidates').delete().eq('id', candidate.id)
     setSavingCandidate(false)
@@ -245,10 +249,10 @@ export function useCandidates({
       }, UNDO_WINDOW_MS)
     }
 
-    showToast(`${candidate.full_name} borttagen`, 'success', { label: 'Ångra', onClick: () => restoreCandidate(candidate) }, UNDO_WINDOW_MS)
+    showToast(`${candidate.full_name} borttagen`, 'success', { label: 'Ångra', onClick: () => restoreCandidate(candidate, notesSnapshot) }, UNDO_WINDOW_MS)
   }
 
-  const restoreCandidate = async (candidate: Candidate) => {
+  const restoreCandidate = async (candidate: Candidate, notes: CandidateNote[] = []) => {
     const { data, error } = await supabase.from('candidates').insert([{
       job_id: candidate.job_id,
       company_id: candidate.company_id,
@@ -268,7 +272,24 @@ export function useCandidates({
       return
     }
     setCandidates(prev => [data, ...prev])
-    showToast(`${data.full_name} återställd`)
+
+    // candidate_notes cascade-raderas med kandidaten, så de måste återskapas
+    // med det nya kandidat-id:t. RLS kräver author_id = auth.uid() vid insert,
+    // så bara anteckningar du själv skrev kan återskapas — kollegors
+    // anteckningar går förlorade vid en riktig radering (kräver soft delete
+    // för att lösas helt, större ändring än vad ångra-fönstret motiverar).
+    const ownNotes = notes.filter(n => n.author_id === session?.user.id)
+    if (ownNotes.length > 0) {
+      const { error: notesError } = await supabase.from('candidate_notes').insert(
+        ownNotes.map(n => ({ candidate_id: data.id, author_id: n.author_id, body: n.body, company_id: data.company_id, author_role: n.author_role }))
+      )
+      if (notesError) {
+        showToast(`${data.full_name} återställd, men anteckningarna kunde inte återskapas`, 'error')
+        return
+      }
+    }
+    const skipped = notes.length - ownNotes.length
+    showToast(skipped > 0 ? `${data.full_name} återställd (${skipped} anteckning${skipped === 1 ? '' : 'ar'} av andra kunde inte återskapas)` : `${data.full_name} återställd`)
   }
 
   const exportCandidateData = () => {

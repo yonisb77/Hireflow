@@ -142,7 +142,7 @@ Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt s
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 500,
+        max_tokens: 1000,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -159,9 +159,20 @@ Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt s
 
     const assessment = JSON.parse(jsonMatch[0]) as Assessment
 
+    // Litar inte blint på att modellen följde formatet — en trasig poäng eller
+    // saknat fält skulle annars sparas rakt av och krascha rendering senare.
+    const score = Math.round(Number(assessment.score))
+    if (!Number.isFinite(score) || score < 1 || score > 10) throw new Error('AI-svaret hade ogiltig poäng')
+    const safeAssessment: Assessment = {
+      score,
+      summary: String(assessment.summary ?? ''),
+      strengths: Array.isArray(assessment.strengths) ? assessment.strengths.map(String) : [],
+      weaknesses: Array.isArray(assessment.weaknesses) ? assessment.weaknesses.map(String) : [],
+    }
+
     const { data: updated, error: updateError } = await supabase
       .from('candidates')
-      .update({ ai_assessment: assessment, ai_assessed_at: new Date().toISOString() })
+      .update({ ai_assessment: safeAssessment, ai_assessed_at: new Date().toISOString() })
       .eq('id', candidate_id)
       .select()
       .single()
