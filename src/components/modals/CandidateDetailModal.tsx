@@ -102,7 +102,7 @@ export default function CandidateDetailModal({ auth, ats }: { auth: Auth; ats: A
                 {ats.resumeBusy ? 'Laddar upp...' : candidate.resume_path ? 'Byt fil' : 'Ladda upp CV'}
                 <input
                   type="file"
-                  accept=".pdf,.doc,.docx"
+                  accept=".pdf,.docx"
                   className="hidden"
                   disabled={ats.resumeBusy}
                   onChange={async e => {

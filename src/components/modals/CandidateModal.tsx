@@ -57,7 +57,7 @@ export default function CandidateModal({ auth, ats }: { auth: Auth; ats: AtsData
             <label className="block text-xs font-semibold text-slate-600 mb-1">CV (valfritt, max 5 MB)</label>
             <input
               type="file"
-              accept=".pdf,.doc,.docx"
+              accept=".pdf,.docx"
               onChange={e => ats.setNewCandResumeFile(e.target.files?.[0] || null)}
               className="w-full text-xs text-slate-600 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border file:border-slate-300 file:bg-white file:text-xs file:font-semibold file:text-slate-700 hover:file:bg-slate-50"
             />

@@ -40,6 +40,11 @@ export const ADMIN_SHORTCUT_EMAIL = import.meta.env.VITE_ADMIN_SHORTCUT_EMAIL ??
 export const STALE_DAYS = 14
 export const WIP_LIMIT = 8
 
+// Måste matcha file_size_limit på "resumes"-bucketen (migration 0008) —
+// kollas i frontend också så felet blir tydligt istället för ett opakt
+// storage-fel efter en hel uppladdning.
+export const MAX_RESUME_BYTES = 5 * 1024 * 1024
+
 export const MS_PER_DAY = 24 * 60 * 60 * 1000
 
 // Hur länge "Ångra"-knappen lever i borttagnings-toasten. CV-filen städas bort

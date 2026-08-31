@@ -5,7 +5,7 @@ import type { Job, Candidate, Stage, CandidateNote } from '../types'
 import type { Json } from '../database.types'
 import type { Session } from '@supabase/supabase-js'
 import type { DropResult } from '@hello-pangea/dnd'
-import { STAGES, STAGE_ORDER, STALE_DAYS, MS_PER_DAY, UNDO_WINDOW_MS } from '../constants'
+import { STAGES, STAGE_ORDER, STALE_DAYS, MS_PER_DAY, UNDO_WINDOW_MS, MAX_RESUME_BYTES } from '../constants'
 import { sanitizeFilename, timeAgo as timeAgoUtil, celebrateHire } from '../utils'
 
 interface Params {
@@ -113,6 +113,10 @@ export function useCandidates({
   }
 
   const uploadResumeFile = async (candidate: Candidate, file: File): Promise<Candidate | null> => {
+    if (file.size > MAX_RESUME_BYTES) {
+      showToast(`CV:t är för stort (max ${Math.floor(MAX_RESUME_BYTES / 1024 / 1024)} MB)`, 'error')
+      return null
+    }
     setResumeBusy(true)
     const path = `${candidate.company_id}/${candidate.id}-${sanitizeFilename(file.name)}`
     const { error: uploadError } = await supabase.storage.from('resumes').upload(path, file, { upsert: true })
@@ -304,7 +308,9 @@ export function useCandidates({
     a.href = url
     a.download = `${sanitizeFilename(selectedCandidate.full_name)}-uppgifter.json`
     a.click()
-    URL.revokeObjectURL(url)
+    // Revoke i nästa tick — Firefox hinner inte alltid starta nedladdningen
+    // om URL:en tas bort synkront direkt efter click().
+    setTimeout(() => URL.revokeObjectURL(url), 0)
     showToast('Uppgifter exporterade')
   }
 
@@ -487,7 +493,9 @@ export function useCandidates({
     a.href = url
     a.download = `kandidater-${new Date().toISOString().slice(0, 10)}.csv`
     a.click()
-    URL.revokeObjectURL(url)
+    // Revoke i nästa tick — Firefox hinner inte alltid starta nedladdningen
+    // om URL:en tas bort synkront direkt efter click().
+    setTimeout(() => URL.revokeObjectURL(url), 0)
     showToast(`${filteredCandidates.length} kandidater exporterade`)
   }
 
