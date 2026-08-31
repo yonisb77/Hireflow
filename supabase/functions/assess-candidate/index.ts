@@ -20,7 +20,7 @@ import mammoth from 'npm:mammoth@1.12.2'
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
 const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')!
-const GEMINI_MODEL = 'gemini-2.5-flash'
+const GEMINI_MODEL = 'gemini-3.6-flash'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -143,7 +143,11 @@ Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt s
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { maxOutputTokens: 1000, responseMimeType: 'application/json' },
+          // gemini-3.6-flash "tänker" internt som standard (går inte att stänga
+          // av — thinkingBudget: 0 avvisas med 400) och det äter en stor del av
+          // max_tokens-budgeten innan själva svaret börjar, så den behöver vara
+          // rejält högre än vad bara JSON-svaret kräver.
+          generationConfig: { maxOutputTokens: 3000, responseMimeType: 'application/json' },
         }),
       },
     )
