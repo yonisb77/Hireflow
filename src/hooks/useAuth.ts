@@ -23,6 +23,10 @@ export function useAuth(showToast: (message: string, type?: 'success' | 'error')
   const [forgotSent, setForgotSent] = useState(false)
 
   const [showPasswordModal, setShowPasswordModal] = useState(false)
+  // Sant när rutan öppnades från en inbjudan/återställningslänk — då finns
+  // inget fungerande lösenord ännu, så rutan får inte gå att stänga utan att
+  // faktiskt sätta ett (annars kan kunden fastna utan sätt att logga in igen).
+  const [passwordSetupRequired, setPasswordSetupRequired] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [passwordBusy, setPasswordBusy] = useState(false)
@@ -44,9 +48,13 @@ export function useAuth(showToast: (message: string, type?: 'success' | 'error')
     supabase.auth.getSession().then(({ data: { session } }) => loadForSession(session))
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       loadForSession(session)
-      // Klick på återställningslänken i mailet loggar in med en tillfällig
-      // session och skickar detta event — öppnar "Byt lösenord" direkt.
-      if (event === 'PASSWORD_RECOVERY') setShowPasswordModal(true)
+      // Klick på inbjudnings- eller återställningslänken i mailet loggar in
+      // med en tillfällig session och skickar detta event — öppnar "Sätt
+      // lösenord" direkt, och gör den obligatorisk (se passwordSetupRequired).
+      if (event === 'PASSWORD_RECOVERY') {
+        setShowPasswordModal(true)
+        setPasswordSetupRequired(true)
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
@@ -96,15 +104,16 @@ export function useAuth(showToast: (message: string, type?: 'success' | 'error')
       return
     }
     setShowPasswordModal(false)
+    setPasswordSetupRequired(false)
     setNewPassword('')
     setNewPasswordConfirm('')
-    showToast('Lösenord ändrat')
+    showToast(passwordSetupRequired ? 'Lösenord satt' : 'Lösenord ändrat')
   }
 
   return {
     session, profile, isAdmin,
     email, setEmail, password, setPassword, showPassword, setShowPassword, loading, authError, handleLogin, handleLogout,
     showForgotModal, setShowForgotModal, forgotEmail, setForgotEmail, forgotBusy, forgotSent, setForgotSent, requestPasswordReset,
-    showPasswordModal, setShowPasswordModal, newPassword, setNewPassword, newPasswordConfirm, setNewPasswordConfirm, passwordBusy, passwordError, changePassword,
+    showPasswordModal, setShowPasswordModal, passwordSetupRequired, newPassword, setNewPassword, newPasswordConfirm, setNewPasswordConfirm, passwordBusy, passwordError, changePassword,
   }
 }

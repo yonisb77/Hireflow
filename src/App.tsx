@@ -53,7 +53,7 @@ export default function App() {
         else if (ats.showJobModal) { ats.setShowJobModal(false); ats.setJobError(null) }
         else if (ats.showCandidateModal) { ats.setShowCandidateModal(false); ats.setCandidateError(null) }
         else if (ats.showAccountModal) { ats.setShowAccountModal(false); ats.setAccountMessage(null) }
-        else if (auth.showPasswordModal) { auth.setShowPasswordModal(false); auth.setNewPassword(''); auth.setNewPasswordConfirm('') }
+        else if (auth.showPasswordModal && !auth.passwordSetupRequired) { auth.setShowPasswordModal(false); auth.setNewPassword(''); auth.setNewPasswordConfirm('') }
         else if (ats.showManageJobsModal) { ats.setShowManageJobsModal(false); ats.setConfirmDeleteJobId(null); ats.setManageError(null); ats.setManageJobFilter('') }
         else if (ats.showManageCompaniesModal) { ats.setShowManageCompaniesModal(false); ats.setConfirmDeleteCompanyId(null); ats.setManageError(null); ats.setManageCompanyFilter('') }
         else if (ats.showStatsModal) ats.setShowStatsModal(false)
