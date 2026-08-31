@@ -38,10 +38,7 @@ interface Assessment {
 const MAX_RESUME_CHARS = 8000
 
 // Kostnadsskydd: varje AI-anrop kostar (eller förbrukar gratiskvot), så en
-// kandidat kan inte bedömas om igen förrän cooldownen gått ut. Gäller lika
-// för enskild bedömning och massrankning (loopen i rankCandidatesForJob
-// räknar då bara den kandidaten som inte lyckad — ingen separat hantering
-// behövs där).
+// kandidat kan inte bedömas om igen förrän cooldownen gått ut.
 const REASSESS_COOLDOWN_MS = 60_000
 
 // Laddar ner CV-filen (skyddad av samma RLS som anroparens övriga läsningar)
