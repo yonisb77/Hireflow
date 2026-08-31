@@ -12,8 +12,6 @@
 [![Realtime](https://img.shields.io/badge/Live%20sync-Realtime-a855f7)]()
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088ff?logo=githubactions&logoColor=white)]()
 
-**Live-demo:** https://hireflow-mini-ats.vercel.app
-
 ## Innehåll
 
 - [Funktioner](#funktioner)
