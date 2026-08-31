@@ -20,8 +20,7 @@
 - [Datamodell](#datamodell)
 - [Installation](#installation)
 - [Driftsätta frontend](#driftsätta-frontend)
-- [Hur inloggning fungerar](#hur-inloggning-fungerar)
-- [Hur kontoskapande fungerar](#hur-kontoskapande-fungerar)
+- [Hur inloggning & kontoskapande fungerar](#hur-inloggning--kontoskapande-fungerar)
 - [Hur AI-bedömning fungerar](#hur-ai-bedömning-fungerar)
 
 ## Funktioner
@@ -34,35 +33,16 @@
 - Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
 - Live-synk mellan flikar/användare (Realtime)
 - Multi-tenant dataisolering i databasen (Row Level Security), inte bara UI:t
-
-**Säkerhet, drift & kvalitet**
-- Multi-tenant dataisolering upprätthålls i databasen via Postgres Row Level Security, inte bara i UI:t
-- GDPR: CV-filen raderas automatiskt när en kandidat tas bort; en admin/kund kan exportera all lagrad data om en kandidat som JSON
-- Live-synk mellan flikar/användare (Supabase Realtime) — ändringar i jobb/kandidater dyker upp direkt utan att ladda om sidan, RLS gäller precis som för vanliga frågor
-- TypeScript strict mode, CI (GitHub Actions) kör lint + build på varje push
+- TypeScript strict mode, CI kör lint + build på varje push
 
 ## Datamodell
 
-- `profiles` — en rad per inloggad användare, `role` är `admin` eller `customer`. En kunds `profiles.id` *är* dess tenant/företags-id.
-- `jobs` — tillhör ett `company_id` (en kunds profil-id).
-- `candidates` — tillhör ett `job_id`; `company_id` härleds server-side från jobbet via en trigger, så det kan aldrig förfalskas av klienten.
-
-RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (kontrolleras via funktionen `is_admin()`, `security definer`) ser och skriver allt.
+`profiles` (roll admin/customer, id = tenant) → `jobs` (company_id) → `candidates` (job_id, company_id härleds server-side, kan inte förfalskas). RLS: kund ser bara sina egna rader, admin ser allt.
 
 ## Installation
 
-1. **Skapa ett Supabase-projekt** på supabase.com.
-2. **Kör migrationerna** i ordning i SQL Editor i Supabase-dashboarden:
-   - [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — schema, RLS, triggers
-   - [`supabase/migrations/0002_ai_assessment.sql`](supabase/migrations/0002_ai_assessment.sql) — kolumner för AI-bedömning
-   - [`supabase/migrations/0003_realtime.sql`](supabase/migrations/0003_realtime.sql) — aktiverar realtidspublicering i databasen; frontend prenumererar på den (`useAtsQuery`) för att synka jobb/kandidater live mellan flikar/användare
-   - [`supabase/migrations/0004_job_status_and_stage_time.sql`](supabase/migrations/0004_job_status_and_stage_time.sql) — jobbstatus + tidsspårning per steg
-   - [`supabase/migrations/0005_prevent_role_escalation.sql`](supabase/migrations/0005_prevent_role_escalation.sql) — täpper till en privilege-escalation-lucka i `profiles`-policyn (se kommentar i filen)
-   - [`supabase/migrations/0006_enforce_job_status_on_insert.sql`](supabase/migrations/0006_enforce_job_status_on_insert.sql) — flyttar "stängt jobb"-kontrollen från UI till RLS
-   - [`supabase/migrations/0007_lock_stage_changed_at.sql`](supabase/migrations/0007_lock_stage_changed_at.sql) — låser `stage_changed_at` mot att klienten skickar egna värden
-   - [`supabase/migrations/0008_job_description_resume_notes_rejection.sql`](supabase/migrations/0008_job_description_resume_notes_rejection.sql) — jobbeskrivning, CV-lagring (Storage-bucket + RLS), anteckningstidslinje, avslagsanledning
-   - [`supabase/migrations/0009_rename_admin_display.sql`](supabase/migrations/0009_rename_admin_display.sql) — engångsfix: sätter visningsnamnet för det första admin-kontot till "Admin" (byt ut e-postadressen i filen mot din egen innan den körs)
-3. **Deploya edge-funktionerna** (kräver [Supabase CLI](https://supabase.com/docs/guides/cli)):
+1. Skapa ett Supabase-projekt, kör migrationerna i `supabase/migrations/` i ordning (SQL Editor eller `supabase db push`)
+2. Deploya edge-funktionerna:
    ```bash
    npx supabase login
    npx supabase link --project-ref DITT_PROJECT_REF
@@ -71,34 +51,18 @@ RLS-policyer: en kund ser bara rader där `company_id = auth.uid()`; en admin (k
    npx supabase functions deploy assess-candidate
    npx supabase secrets set ANTHROPIC_API_KEY=sk-ant-din-nyckel
    ```
-   `create-user` och `delete-user` låter en admin bjuda in respektive ta bort kundkonton (använder service-role-nyckeln, som Supabase injicerar automatiskt i deployade funktioner — lägg aldrig den nyckeln i frontend). `assess-candidate` kör med den inloggade användarens egen JWT, så RLS avgör vad de får bedöma; kräver en Anthropic API-nyckel med krediter.
-4. **Skapa första admin-kontot**: eftersom bara admins kan skapa konton måste första användaren skapas för hand:
-   - Supabase Dashboard → Authentication → Users → Add user (sätt lösenord, eller använd "invite").
-   - Kör sedan i SQL Editor: `update public.profiles set role = 'admin' where email = 'din@epost.se';`
-   - Om "Admin"-genvägen vid inloggning ska funka (se "Hur inloggning fungerar" nedan) måste `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx` ändras till samma e-postadress.
-5. **Sätt miljövariabler**: kopiera `.env.example` till `.env` och fyll i projektets URL och anon-nyckel (Dashboard → Settings → API).
-6. **Installera & kör**:
-   ```bash
-   npm install
-   npm run dev
-   ```
+3. Skapa första admin-kontot manuellt (Supabase Dashboard → Authentication → Add user, sätt sedan `role = 'admin'` i `profiles`-tabellen). Uppdatera `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx` till samma adress.
+4. Kopiera `.env.example` till `.env`, fyll i Supabase-URL + anon-nyckel
+5. `npm install && npm run dev`
 
 ## Driftsätta frontend
 
-Vilken statisk host som helst funkar (Vercel, Netlify, Cloudflare Pages). Sätt `VITE_SUPABASE_URL` och `VITE_SUPABASE_ANON_KEY` som miljövariabler vid bygget. `npm run build` bygger till `dist/`.
+Valfri statisk host (Vercel/Netlify/Cloudflare Pages). Sätt miljövariablerna vid bygget, `npm run build` → `dist/`. Uppdatera Site URL/Redirect URLs i Supabase Auth till den riktiga URL:en.
 
-Kom ihåg att uppdatera **Site URL** och **Redirect URLs** i Supabase (Authentication → URL Configuration) till den riktiga driftsatta URL:en, annars pekar inbjudningsmail fel.
+## Hur inloggning & kontoskapande fungerar
 
-## Hur inloggning fungerar
-
-Inloggningsfältet heter "Användarnamn" och tar emot en e-postadress för kunder. Admin-kontot har en hårdkodad genväg: att skriva "Admin" i fältet slår upp den riktiga e-postadressen (satt i `ADMIN_SHORTCUT_EMAIL` i `src/App.tsx`) innan inloggningen skickas till Supabase Auth — det är ingen egen användarnamnsinloggning, bara en förkortning för det enda admin-kontot. Att skriva admin-kontots riktiga e-postadress direkt blockeras i gränssnittet.
-
-## Hur kontoskapande fungerar
-
-Admin använder knappen "Skapa konto" för att skicka en e-postinbjudan (via `supabase.auth.admin.inviteUserByEmail`, körs i edge-funktionen `create-user`). Den inbjudna klickar på länken i mailet, sätter ett lösenord, och en databastrigger (`handle_new_user`) skapar deras `profiles`-rad med den roll och det företagsnamn admin angav. E-post skickas via Supabases inbyggda SMTP som standard — för produktionsvolym behöver en egen SMTP-leverantör konfigureras i Supabase-dashboarden.
+Kunder loggar in med e-post. Admin skriver "Admin" i fältet, vilket slår upp den riktiga adressen bakom kulisserna. Nya konton skapas bara via admins "Skapa konto"-knapp (mejlinbjudan) — ingen öppen registrering.
 
 ## Hur AI-bedömning fungerar
 
-På en kandidats detaljvy kan man klicka "AI-bedöm mot jobbet". Edge-funktionen `assess-candidate` hämtar kandidatens profil (namn, LinkedIn, anteckningar), jobbets titel/avdelning/beskrivning — via anroparens egen inloggning, så RLS skyddar automatiskt mot att bedöma andras kandidater — samt, om ett CV är bifogat, laddar ner filen från Storage och textextraherar den (PDF via `unpdf`, DOCX via `mammoth`; äldre `.doc`-format och skannade bild-PDF:er utan textlager stöds inte och faller tillbaka på profilinformationen). Allt skickas till Claude med en instruktion om att svara med strukturerad JSON (poäng 1–10, sammanfattning, styrkor, svagheter), och resultatet sparas på kandidaten.
-
-**Kostnadsskydd:** en kandidat kan inte bedömas om igen förrän 60 sekunder gått sedan senaste bedömningen (kollas server-side mot `ai_assessed_at`, går inte att kringgå från klienten) — förhindrar att upprepad klickning eller massrankning drar onödiga Anthropic-krediter.
+"AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Claude, som svarar med poäng + motivering. Kostnadsskydd: samma kandidat kan inte bedömas om igen förrän 60 sekunder gått, kollas server-side.
