@@ -76,7 +76,6 @@ export type Database = {
           full_name: string
           id: string
           interview_date: string | null
-          is_favorite: boolean
           job_id: string
           linkedin_url: string | null
           notes: string | null
@@ -94,7 +93,6 @@ export type Database = {
           full_name: string
           id?: string
           interview_date?: string | null
-          is_favorite?: boolean
           job_id: string
           linkedin_url?: string | null
           notes?: string | null
@@ -112,7 +110,6 @@ export type Database = {
           full_name?: string
           id?: string
           interview_date?: string | null
-          is_favorite?: boolean
           job_id?: string
           linkedin_url?: string | null
           notes?: string | null

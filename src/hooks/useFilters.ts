@@ -19,7 +19,6 @@ export function useFilters(isAdmin: boolean) {
 
   const [searchInput, setSearchInput] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
-  const [showFavoritesOnly, setShowFavoritesOnly] = useState(false)
 
   // Debounce på kandidatsökningen så filtreringen inte kör på varje tangenttryck.
   useEffect(() => {
@@ -27,17 +26,16 @@ export function useFilters(isAdmin: boolean) {
     return () => clearTimeout(id)
   }, [searchInput])
 
-  const hasActiveFilter = searchQuery.trim() !== '' || selectedJob !== 'all' || showFavoritesOnly || (isAdmin && selectedCompany !== 'all')
+  const hasActiveFilter = searchQuery.trim() !== '' || selectedJob !== 'all' || (isAdmin && selectedCompany !== 'all')
 
   const clearFilters = () => {
     setSearchInput('')
     setSelectedJob('all')
-    setShowFavoritesOnly(false)
     if (isAdmin) setSelectedCompany('all')
   }
 
   return {
     selectedJob, setSelectedJob, selectedCompany, setSelectedCompany,
-    searchInput, setSearchInput, searchQuery, showFavoritesOnly, setShowFavoritesOnly, hasActiveFilter, clearFilters,
+    searchInput, setSearchInput, searchQuery, hasActiveFilter, clearFilters,
   }
 }

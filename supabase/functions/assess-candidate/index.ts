@@ -16,6 +16,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2'
 import { extractText, getDocumentProxy } from 'npm:unpdf@1.8.1'
 import mammoth from 'npm:mammoth@1.12.2'
+import { Buffer } from 'node:buffer'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY')!
@@ -44,15 +45,15 @@ const MAX_RESUME_CHARS = 8000
 const REASSESS_COOLDOWN_MS = 60_000
 
 // Laddar ner CV-filen (skyddad av samma RLS som anroparens övriga läsningar)
-// och textextraherar den. Returnerar null om filen saknas, formatet inte
-// stöds (t.ex. gammalt .doc) eller extraktionen misslyckas (t.ex. skannad
-// bild-PDF utan textlager) — bedömningen faller då tillbaka på profildata.
+// och textextraherar den. Misslyckas extraktionen (t.ex. skannad bild-PDF
+// utan textlager) faller bedömningen tillbaka på profildata istället för
+// att stoppa helt — `error` skickas ändå med i prompten som kontext.
 async function extractResumeText(
   supabase: ReturnType<typeof createClient>,
   resumePath: string,
-): Promise<string | null> {
-  const { data, error } = await supabase.storage.from('resumes').download(resumePath)
-  if (error || !data) return null
+): Promise<{ text: string | null; error: string | null }> {
+  const { data, error: downloadError } = await supabase.storage.from('resumes').download(resumePath)
+  if (downloadError || !data) return { text: null, error: `nedladdning misslyckades: ${downloadError?.message ?? 'okänt fel'}` }
 
   const ext = resumePath.split('.').pop()?.toLowerCase()
   const buffer = await data.arrayBuffer()
@@ -62,17 +63,25 @@ async function extractResumeText(
       const pdf = await getDocumentProxy(new Uint8Array(buffer))
       const { text } = await extractText(pdf, { mergePages: true })
       const trimmed = text.trim()
-      return trimmed ? trimmed.slice(0, MAX_RESUME_CHARS) : null
+      return trimmed
+        ? { text: trimmed.slice(0, MAX_RESUME_CHARS), error: null }
+        : { text: null, error: 'PDF innehöll ingen extraherbar text (troligen skannad bild utan textlager)' }
     }
     if (ext === 'docx') {
-      const result = await mammoth.extractRawText({ arrayBuffer: buffer })
+      // npm:mammoth i Deno löser till Node-byggnaden, som bara känner igen
+      // { path } eller { buffer: Buffer } — inte { arrayBuffer }, som är
+      // webbläsarbyggnadens API. Fel nyckel gav "Could not find file in options".
+      const result = await mammoth.extractRawText({ buffer: Buffer.from(buffer) })
       const trimmed = result.value.trim()
-      return trimmed ? trimmed.slice(0, MAX_RESUME_CHARS) : null
+      return trimmed
+        ? { text: trimmed.slice(0, MAX_RESUME_CHARS), error: null }
+        : { text: null, error: 'DOCX innehöll ingen extraherbar text' }
     }
-  } catch {
-    return null
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    return { text: null, error: `extraktion kastade fel för .${ext}: ${message}` }
   }
-  return null
+  return { text: null, error: `filändelse .${ext} stöds inte för textextraktion` }
 }
 
 Deno.serve(async (req) => {
@@ -111,12 +120,13 @@ Deno.serve(async (req) => {
       .eq('id', candidate.job_id)
       .single()
 
-    const resumeText = candidate.resume_path ? await extractResumeText(supabase, candidate.resume_path) : null
+    const resumeResult = candidate.resume_path ? await extractResumeText(supabase, candidate.resume_path) : { text: null, error: null }
+    const resumeText = resumeResult.text
     const resumeStatus = !candidate.resume_path
       ? 'nej'
       : resumeText
         ? 'ja (text extraherad, se nedan)'
-        : 'ja, men texten kunde inte extraheras (t.ex. äldre .doc-format eller skannad bild-PDF utan textlager)'
+        : `ja, men texten kunde inte extraheras (${resumeResult.error ?? 'okänd orsak'})`
 
     const prompt = `Du bedömer hur väl en jobbkandidat matchar en tjänst, baserat på profilinformation och (om tillgängligt) CV-innehåll.
 Notera: detta är en enkel/avskalad bedömning, inte en fullständig CV-parser.

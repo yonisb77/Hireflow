@@ -1,5 +1,5 @@
 import { Draggable } from '@hello-pangea/dnd'
-import { CalendarClock, CheckSquare, ChevronRight, Clock, Crown, ExternalLink, Paperclip, Sparkles, Star } from 'lucide-react'
+import { CalendarClock, CheckSquare, ChevronRight, Clock, Crown, ExternalLink, Paperclip, Sparkles } from 'lucide-react'
 import HighlightMatch from './HighlightMatch'
 import { STAGES } from '../constants'
 import { avatarColor, initials } from '../utils'
@@ -54,25 +54,14 @@ export default function CandidateCard({ candidate, job, stage, index, auth, ats 
                     <span className="shrink-0 text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">Ny</span>
                   )}
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  {candidate.ai_assessment && (
-                    <span
-                      title={candidate.id === ats.topMatchId ? 'Bästa matchningen för jobbet' : undefined}
-                      className={`inline-flex items-center gap-0.5 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shadow-sm ${candidate.id === ats.topMatchId ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/40' : 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-purple-500/40'}`}
-                    >
-                      {candidate.id === ats.topMatchId ? <Crown className="w-2.5 h-2.5" /> : <Sparkles className="w-2.5 h-2.5" />} {candidate.ai_assessment.score}/10
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); ats.toggleFavorite(candidate) }}
-                    title={candidate.is_favorite ? 'Ta bort favoritmarkering' : 'Markera som favorit'}
-                    aria-label={candidate.is_favorite ? 'Ta bort favoritmarkering' : 'Markera som favorit'}
-                    className={`p-0.5 rounded transition ${candidate.is_favorite ? 'text-amber-500' : 'text-slate-300 hover:text-amber-400'}`}
+                {candidate.ai_assessment && (
+                  <span
+                    title={candidate.id === ats.topMatchId ? 'Bästa matchningen för jobbet' : undefined}
+                    className={`shrink-0 inline-flex items-center gap-0.5 text-[10px] font-bold text-white px-1.5 py-0.5 rounded-full shadow-sm ${candidate.id === ats.topMatchId ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/40' : 'bg-gradient-to-r from-violet-600 to-purple-600 shadow-purple-500/40'}`}
                   >
-                    <Star className="w-3.5 h-3.5" fill={candidate.is_favorite ? 'currentColor' : 'none'} />
-                  </button>
-                </div>
+                    {candidate.id === ats.topMatchId ? <Crown className="w-2.5 h-2.5" /> : <Sparkles className="w-2.5 h-2.5" />} {candidate.ai_assessment.score}/10
+                  </span>
+                )}
               </div>
               <div className="text-xs text-slate-500 mb-2 truncate">
                 {job?.title || 'Okänt jobb'}

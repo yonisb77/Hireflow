@@ -20,15 +20,14 @@ interface Params {
   selectedJob: string
   selectedCompany: string
   searchQuery: string
-  showFavoritesOnly: boolean
 }
 
 // Allt som rör kandidater: skapa/redigera/ta bort/återställ, anteckningar,
-// AI-bedömning (enskild + massrankning), massflytt, kanban-flytt, samt de
-// filtrerade listor och statistik som resten av appen läser.
+// AI-bedömning, massflytt, kanban-flytt, samt de filtrerade listor och
+// statistik som resten av appen läser.
 export function useCandidates({
   session, isAdmin, showToast, candidates, setCandidates, jobs, manageableJobs, companyName,
-  selectedJob, selectedCompany, searchQuery, showFavoritesOnly,
+  selectedJob, selectedCompany, searchQuery,
 }: Params) {
   const [showCandidateModal, setShowCandidateModal] = useState(false)
   const [showStatsModal, setShowStatsModal] = useState(false)
@@ -49,10 +48,6 @@ export function useCandidates({
   const [saveError, setSaveError] = useState<string | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
   const [aiError, setAiError] = useState<string | null>(null)
-
-  // Massrankning: AI-bedömer alla obeslutade kandidater på ett jobb i tur och ordning.
-  const [rankingBusy, setRankingBusy] = useState(false)
-  const [rankingProgress, setRankingProgress] = useState<{ done: number; total: number } | null>(null)
 
   const [candidateNotes, setCandidateNotes] = useState<CandidateNote[]>([])
   const [notesLoading, setNotesLoading] = useState(false)
@@ -268,7 +263,6 @@ export function useCandidates({
       rejection_reason: candidate.rejection_reason,
       resume_path: candidate.resume_path,
       ai_assessment: candidate.ai_assessment as unknown as Json,
-      is_favorite: candidate.is_favorite,
       interview_date: candidate.interview_date,
     }]).select().single().returns<Candidate>()
     if (error || !data) {
@@ -329,29 +323,6 @@ export function useCandidates({
     setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c))
     setSelectedCandidate(updated)
     showToast('AI-bedömning klar')
-  }
-
-  // Kör AI-bedömningen på alla obeslutade kandidater för ett jobb i tur och
-  // ordning (hired/rejected är redan avgjorda och behöver ingen rankning),
-  // så kanban-kolumnerna kan sorteras efter matchningspoäng.
-  const rankCandidatesForJob = async (jobId: string) => {
-    const targets = candidates.filter(c => c.job_id === jobId && !['hired', 'rejected'].includes(c.stage))
-    if (targets.length === 0) return
-    setRankingBusy(true)
-    setRankingProgress({ done: 0, total: targets.length })
-    let succeeded = 0
-    for (const candidate of targets) {
-      const { data, error } = await invokeEdgeFunction<{ candidate?: Candidate }>('assess-candidate', { candidate_id: candidate.id })
-      const updated = data?.candidate
-      if (!error && updated) {
-        succeeded++
-        setCandidates(prev => prev.map(c => c.id === updated.id ? updated : c))
-      }
-      setRankingProgress(prev => prev ? { done: prev.done + 1, total: prev.total } : null)
-    }
-    setRankingBusy(false)
-    setRankingProgress(null)
-    showToast(`${succeeded} av ${targets.length} kandidater rankade`)
   }
 
   // Sätter angivna kandidater till ett nytt steg optimistiskt i UI:t och
@@ -424,25 +395,14 @@ export function useCandidates({
   const isStale = (candidate: Candidate) => !['hired', 'rejected'].includes(candidate.stage) && daysInStage(candidate) >= STALE_DAYS
   const isNew = (candidate: Candidate) => now - new Date(candidate.created_at).getTime() < MS_PER_DAY
 
-  const toggleFavorite = async (candidate: Candidate) => {
-    const nextValue = !candidate.is_favorite
-    setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, is_favorite: nextValue } : c))
-    const { error } = await supabase.from('candidates').update({ is_favorite: nextValue }).eq('id', candidate.id)
-    if (error) {
-      setCandidates(prev => prev.map(c => c.id === candidate.id ? { ...c, is_favorite: !nextValue } : c))
-      showToast('Kunde inte uppdatera favorit', 'error')
-    }
-  }
-
   const filteredCandidates = candidates.filter(c => {
     const matchesCompany = !isAdmin || selectedCompany === 'all' || c.company_id === selectedCompany
     const matchesJob = selectedJob === 'all' || c.job_id === selectedJob
-    const matchesFavorite = !showFavoritesOnly || c.is_favorite
     const q = searchQuery.toLowerCase()
     const matchesSearch = c.full_name.toLowerCase().includes(q) ||
                           (c.email && c.email.toLowerCase().includes(q)) ||
                           (c.notes && c.notes.toLowerCase().includes(q))
-    return matchesCompany && matchesJob && matchesFavorite && matchesSearch
+    return matchesCompany && matchesJob && matchesSearch
   })
 
   // Kandidaten med högst AI-poäng för det valda jobbet — får en krona istället för standardbadgen.
@@ -472,7 +432,7 @@ export function useCandidates({
 
   const exportCsv = () => {
     const stageTitle = (stageId: Stage) => STAGES.find(s => s.id === stageId)?.title ?? stageId
-    const headers = ['Namn', 'E-post', 'LinkedIn', 'Jobb', ...(isAdmin ? ['Företag'] : []), 'Steg', 'AI-poäng', 'Favorit', 'Intervjudatum', 'Tillagd']
+    const headers = ['Namn', 'E-post', 'LinkedIn', 'Jobb', ...(isAdmin ? ['Företag'] : []), 'Steg', 'AI-poäng', 'Intervjudatum', 'Tillagd']
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`
     const rows = filteredCandidates.map(c => {
       const job = jobs.find(j => j.id === c.job_id)
@@ -484,7 +444,6 @@ export function useCandidates({
         ...(isAdmin ? [companyName(c.company_id)] : []),
         stageTitle(c.stage),
         c.ai_assessment ? String(c.ai_assessment.score) : '',
-        c.is_favorite ? 'Ja' : '',
         c.interview_date ? new Date(c.interview_date).toLocaleDateString('sv-SE') : '',
         new Date(c.created_at).toLocaleDateString('sv-SE'),
       ].map(escape).join(',')
@@ -507,13 +466,12 @@ export function useCandidates({
     newCandName, setNewCandName, newCandEmail, setNewCandEmail, newCandLinkedin, setNewCandLinkedin, newCandJobId, setNewCandJobId,
     newCandNotes, setNewCandNotes, newCandResumeFile, setNewCandResumeFile, candidateError, setCandidateError, candidateBusy, resumeBusy,
     selectedCandidate, setSelectedCandidate, editDraft, setEditDraft, savingCandidate, saveError, aiBusy, aiError,
-    rankingBusy, rankingProgress,
     candidateNotes, notesLoading, newNoteText, setNewNoteText, noteBusy, noteError,
     selectionMode, setSelectionMode, selectedCandidateIds, toggleCandidateSelection, exitSelectionMode, bulkMoveSelected,
-    now, timeAgo, daysInStage, isStale, isNew, nextStage, toggleFavorite,
+    now, timeAgo, daysInStage, isStale, isNew, nextStage,
     createCandidate, uploadResumeFile, viewResume,
     openCandidate, closeCandidateModal, saveCandidate, addNote, deleteCandidate, restoreCandidate, exportCandidateData,
-    assessCandidate, rankCandidatesForJob, onDragEnd, advanceStage,
+    assessCandidate, onDragEnd, advanceStage,
     filteredCandidates, topMatchId, stats, exportCsv,
   }
 }

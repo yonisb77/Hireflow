@@ -1,5 +1,5 @@
 import type { RefObject } from 'react'
-import { BarChart3, CheckSquare, ChevronDown, Download, FilterX, Plus, Search, Settings2, ShieldCheck, Sparkles, Star, User, X } from 'lucide-react'
+import { BarChart3, CheckSquare, ChevronDown, Download, FilterX, Plus, Search, Settings2, ShieldCheck, User, X } from 'lucide-react'
 import type { Auth } from '../hooks/useAuth'
 import type { AtsData } from '../hooks/useAtsData'
 
@@ -59,21 +59,6 @@ export default function FilterToolbar({ auth, ats, searchInputRef }: { auth: Aut
           <ChevronDown className="w-3.5 h-3.5 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-blue-500" />
         </div>
 
-        <button
-          type="button"
-          onClick={() => ats.setShowFavoritesOnly(!ats.showFavoritesOnly)}
-          title="Visa bara favoritmarkerade kandidater"
-          aria-label="Visa bara favoritmarkerade kandidater"
-          aria-pressed={ats.showFavoritesOnly}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold border transition ${
-            ats.showFavoritesOnly
-              ? 'bg-amber-400 border-amber-500 text-amber-950 hover:bg-amber-300'
-              : 'bg-blue-100 border-blue-300 text-blue-800 hover:bg-blue-200 hover:border-blue-400'
-          }`}
-        >
-          <Star className="w-3.5 h-3.5" fill={ats.showFavoritesOnly ? 'currentColor' : 'none'} /> <span className="hidden sm:inline">Favoriter</span>
-        </button>
-
         {/* Individuellt borttagningsbara filterchips, istället för att bara nollställa allt på en gång. */}
         {ats.searchQuery.trim() && (
           <span className="inline-flex items-center gap-1 text-xs font-medium text-blue-800 bg-blue-100 border border-blue-300 pl-2.5 pr-1 py-1 rounded-full">
@@ -99,18 +84,6 @@ export default function FilterToolbar({ auth, ats, searchInputRef }: { auth: Aut
         )}
 
         <div className="flex flex-wrap items-center gap-2 ml-auto">
-          {ats.selectedJob !== 'all' && (
-            <button
-              type="button"
-              onClick={() => ats.rankCandidatesForJob(ats.selectedJob)}
-              disabled={ats.rankingBusy}
-              title="AI-bedöm alla obeslutade kandidater för jobbet och sortera efter matchning"
-              className="bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 active:scale-[0.97] disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition shadow-sm shadow-purple-500/30"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">{ats.rankingBusy ? `Rankar (${ats.rankingProgress?.done ?? 0}/${ats.rankingProgress?.total ?? 0})` : 'Ranka kandidater'}</span>
-            </button>
-          )}
           {(ats.candidates.length > 0 || ats.jobs.length > 0 || ats.openJobs.length > 0 || ats.filteredCandidates.length > 0) && (
             <div className="relative">
               <button

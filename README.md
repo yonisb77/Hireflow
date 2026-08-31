@@ -27,7 +27,7 @@
 - Kanban-vy per jobb, drag-and-drop, filter på jobb/namn
 - Admin kan agera åt vilken kund som helst
 - AI-bedömning (Gemini) av kandidater mot jobbets kravprofil, inklusive bifogat CV
-- CV-uppladdning, anteckningstidslinje, favoriter, intervjudatum, dubblettvarning
+- CV-uppladdning, anteckningstidslinje, intervjudatum, dubblettvarning
 - Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
 - Live-synk mellan flikar/användare (Realtime)
 - Multi-tenant dataisolering i databasen (Row Level Security)
