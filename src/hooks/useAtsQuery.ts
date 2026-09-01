@@ -38,11 +38,25 @@ export function useAtsQuery(profile: Profile | null) {
   }
 
   useEffect(() => {
-    // fetchData är async och sätter inget state förrän efter sitt första await,
-    // så det uppstår ingen synkron kaskad-rendering — lintern kan bara inte se
-    // det, den flaggar varje effekt som anropar en funktion som ens sätter state.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (profile) fetchData(profile)
+    // Vid utloggning måste föregående användares data rensas ur state. Annars
+    // ligger den kvar i minnet och hinner visas för nästa användare som loggar
+    // in i samma flik, innan den nya hämtningen är klar — en kund kan då se en
+    // annan kunds kandidater blinka förbi.
+    if (!profile) {
+      /* eslint-disable react-hooks/set-state-in-effect --
+         Synkroniserar mot en extern källa (Supabase Auth-sessionen), inte mot
+         annan React-state — det är precis vad effekter är till för. Rensningen
+         måste ske synkront så inget hinner renderas för fel användare. */
+      setJobs([])
+      setCandidates([])
+      setCustomers([])
+      setAccountStatus({})
+      setDataError(null)
+      setLoadingData(true)
+      /* eslint-enable react-hooks/set-state-in-effect */
+      return
+    }
+    fetchData(profile)
   }, [profile])
 
   // Live-synk mellan flikar/användare: `jobs`/`candidates` är redan
