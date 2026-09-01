@@ -76,6 +76,18 @@ export default function App() {
 
   if (!auth.session) return <LoginScreen auth={auth} />
 
+  // Inbjudnings-/återställningslänken ger en tillfällig session innan något
+  // lösenord är satt. Visa bara "sätt lösenord"-rutan på ren bakgrund då —
+  // annars renderas hela dashboarden bakom, vilket ser ut som att man redan
+  // är inloggad och klar.
+  if (auth.passwordSetupRequired) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-900">
+        <PasswordModal auth={auth} />
+      </div>
+    )
+  }
+
   if (!auth.profile) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-blue-900 to-slate-900 flex items-center justify-center">
