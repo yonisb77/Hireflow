@@ -7,6 +7,18 @@ import { translateAuthError } from '../utils'
 
 export type Auth = ReturnType<typeof useAuth>
 
+// Läses en enda gång vid modulladdning — innan Supabase-klienten hinner
+// bearbeta och städa bort hash:et från URL:en. PASSWORD_RECOVERY-eventet från
+// onAuthStateChange är dokumenterat opålitligt av Supabase själva (kan utebli
+// helt, särskilt för inbjudningslänkar — se supabase/auth#1948), så det går
+// inte lita på det ensamt. Länkens `type=invite`/`type=recovery` i URL:en är
+// den pålitliga signalen.
+const initialAuthLinkType = (() => {
+  if (typeof window === 'undefined') return null
+  const raw = window.location.hash ? window.location.hash.slice(1) : window.location.search.slice(1)
+  return new URLSearchParams(raw).get('type')
+})()
+
 export function useAuth(showToast: (message: string, type?: 'success' | 'error') => void) {
   const [session, setSession] = useState<Session | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -22,11 +34,12 @@ export function useAuth(showToast: (message: string, type?: 'success' | 'error')
   const [forgotBusy, setForgotBusy] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
 
-  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const isInviteOrRecoveryLink = initialAuthLinkType === 'invite' || initialAuthLinkType === 'recovery'
+  const [showPasswordModal, setShowPasswordModal] = useState(isInviteOrRecoveryLink)
   // Sant när rutan öppnades från en inbjudan/återställningslänk — då finns
   // inget fungerande lösenord ännu, så rutan får inte gå att stänga utan att
   // faktiskt sätta ett (annars kan kunden fastna utan sätt att logga in igen).
-  const [passwordSetupRequired, setPasswordSetupRequired] = useState(false)
+  const [passwordSetupRequired, setPasswordSetupRequired] = useState(isInviteOrRecoveryLink)
   const [newPassword, setNewPassword] = useState('')
   const [newPasswordConfirm, setNewPasswordConfirm] = useState('')
   const [passwordBusy, setPasswordBusy] = useState(false)
