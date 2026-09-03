@@ -12,31 +12,44 @@
 [![Realtime](https://img.shields.io/badge/Live%20sync-Realtime-a855f7)]()
 [![CI](https://img.shields.io/badge/CI-GitHub%20Actions-2088ff?logo=githubactions&logoColor=white)]()
 
-## Innehåll
+---
 
-- [Funktioner](#funktioner)
-- [Datamodell](#datamodell)
-- [Installation](#installation)
-- [Driftsätta frontend](#driftsätta-frontend)
-- [Hur inloggning & kontoskapande fungerar](#hur-inloggning--kontoskapande-fungerar)
-- [Hur AI-bedömning fungerar](#hur-ai-bedömning-fungerar)
+## 📋 Innehåll
 
-## Funktioner
+- [Funktioner](#-funktioner)
+- [Datamodell](#-datamodell)
+- [Installation](#-installation)
+- [Driftsätta frontend](#-driftsätta-frontend)
+- [Hur inloggning & kontoskapande fungerar](#-hur-inloggning--kontoskapande-fungerar)
+- [Hur AI-bedömning fungerar](#-hur-ai-bedömning-fungerar)
 
-- Admin bjuder in admin-/kundkonton via mejl, ingen öppen registrering
-- Kanban-vy per jobb, drag-and-drop, filter på jobb/namn
-- Admin kan agera åt vilken kund som helst
-- AI-bedömning (Gemini) av kandidater mot jobbets kravprofil, inklusive bifogat CV
-- CV-uppladdning, anteckningstidslinje, intervjudatum, dubblettvarning
-- Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion
-- Live-synk mellan flikar/användare (Realtime)
-- Multi-tenant dataisolering i databasen (Row Level Security)
+## ✨ Funktioner
 
-## Datamodell
+| | |
+|---|---|
+| 🔐 | Admin bjuder in admin-/kundkonton via mejl, ingen öppen registrering |
+| 🗂️ | Kanban-vy per jobb, drag-and-drop, filter på jobb/namn |
+| 👤 | Admin kan agera åt vilken kund som helst |
+| 🤖 | AI-bedömning (Gemini) av kandidater mot jobbets kravprofil, inklusive bifogat CV |
+| 📎 | CV-uppladdning, anteckningstidslinje, intervjudatum, dubblettvarning |
+| 📊 | Statistik, CSV-export, GDPR-dataexport, riktig ångra-funktion |
+| ⚡ | Live-synk mellan flikar/användare (Realtime) |
+| 🛡️ | Multi-tenant dataisolering i databasen (Row Level Security) |
 
-`profiles` (roll admin/customer, id = tenant) → `jobs` (company_id) → `candidates` (job_id, company_id härleds server-side, kan inte förfalskas). RLS: kund ser bara sina egna rader, admin ser allt.
+## 🗄️ Datamodell
 
-## Installation
+| Tabell | Nyckel | Beskrivning |
+|---|---|---|
+| `profiles` | `id` = tenant | Roll `admin` eller `customer` |
+| `jobs` | `company_id` | Ett jobb tillhör ett företag |
+| `candidates` | `job_id`, `company_id` | `company_id` härleds server-side, kan inte förfalskas |
+
+RLS: kund ser bara sina egna rader, admin ser allt.
+
+## 🚀 Installation
+
+<details>
+<summary>Visa steg</summary>
 
 1. Skapa ett Supabase-projekt, kör migrationerna i `supabase/migrations/` i ordning (SQL Editor eller `supabase db push`)
 2. Deploya edge-funktionerna:
@@ -52,14 +65,16 @@
 4. Kopiera `.env.example` till `.env`, fyll i Supabase-URL + anon-nyckel + `VITE_ADMIN_SHORTCUT_EMAIL` (samma adress som admin-kontot ovan)
 5. `npm install && npm run dev`
 
-## Driftsätta frontend
+</details>
+
+## 🌐 Driftsätta frontend
 
 Valfri statisk host (Vercel/Netlify/Cloudflare Pages). Sätt miljövariablerna vid bygget, `npm run build` → `dist/`. Uppdatera Site URL/Redirect URLs i Supabase Auth till den riktiga URL:en.
 
-## Hur inloggning & kontoskapande fungerar
+## 🔑 Hur inloggning & kontoskapande fungerar
 
 Kunder loggar in med e-post. Admin skriver "Admin" i fältet, vilket slår upp den riktiga adressen bakom kulisserna. Nya konton skapas bara via admins "Skapa konto"-knapp (mejlinbjudan) — ingen öppen registrering.
 
-## Hur AI-bedömning fungerar
+## 🤖 Hur AI-bedömning fungerar
 
 "AI-bedöm mot jobbet" skickar kandidatens profil, jobbets kravprofil och (om bifogat) det textextraherade CV-innehållet (PDF/Word) till Gemini, som svarar med poäng och motivering.
