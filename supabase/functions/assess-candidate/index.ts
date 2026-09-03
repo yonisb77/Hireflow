@@ -143,26 +143,38 @@ Ge en kort, ärlig bedömning. Om CV-innehåll finns ovan, väg in det tyngre ä
 
 Om informationen är för tunn för att bedöma matchning mot tjänsten, sätt score till 5 och säg det i summary.`
 
-    const aiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          // gemini-3.6-flash "tänker" internt som standard (går inte att stänga
-          // av — thinkingBudget: 0 avvisas med 400) och det äter en stor del av
-          // max_tokens-budgeten innan själva svaret börjar, så den behöver vara
-          // rejält högre än vad bara JSON-svaret kräver.
-          generationConfig: { maxOutputTokens: 3000, responseMimeType: 'application/json' },
-        }),
-      },
-    )
-
-    if (!aiRes.ok) {
-      const errText = await aiRes.text()
-      throw new Error(`AI-tjänsten svarade med fel: ${errText}`)
+    // Gemini svarar ibland 503 (UNAVAILABLE) vid hög belastning hos Google —
+    // tillfälligt, inte ett fel i vår kod. Ett automatiskt återförsök gör att
+    // ett enda klick i UI:t räcker istället för att användaren själv måste
+    // klicka igen.
+    const GEMINI_MAX_ATTEMPTS = 3
+    let aiRes: Response | null = null
+    let lastErrText = ''
+    for (let attempt = 1; attempt <= GEMINI_MAX_ATTEMPTS; attempt++) {
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            // gemini-3.6-flash "tänker" internt som standard (går inte att stänga
+            // av — thinkingBudget: 0 avvisas med 400) och det äter en stor del av
+            // max_tokens-budgeten innan själva svaret börjar, så den behöver vara
+            // rejält högre än vad bara JSON-svaret kräver.
+            generationConfig: { maxOutputTokens: 3000, responseMimeType: 'application/json' },
+          }),
+        },
+      )
+      if (res.ok) { aiRes = res; break }
+      lastErrText = await res.text()
+      const isRetryable = res.status === 503 || res.status === 429
+      if (!isRetryable || attempt === GEMINI_MAX_ATTEMPTS) {
+        throw new Error(`AI-tjänsten svarade med fel: ${lastErrText}`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 800 * attempt))
     }
+    if (!aiRes) throw new Error(`AI-tjänsten svarade med fel: ${lastErrText}`)
 
     const aiJson = await aiRes.json()
     const rawText: string = aiJson.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
